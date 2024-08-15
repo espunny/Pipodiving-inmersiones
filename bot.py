@@ -142,7 +142,11 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
     
     
-    save_data(EVENTS)
+    try:
+        save_data(EVENTS)
+    except Exception as e:
+        # Handle unexpected error
+        print(f'Error al guardar los datos: {e}')
 
 
 async def borrar_inmersion(update: Update, context: CallbackContext):
@@ -229,7 +233,11 @@ async def handle_button(update: Update, context: CallbackContext):
             event['spots_left'] -= 1
             
     
-    save_data(EVENTS)
+    try:
+        save_data(EVENTS)
+    except Exception as e:
+        # Handle unexpected error
+        print(f'Error al guardar los datos: {e}')
 
             await query.answer("¡Te has apuntado con éxito!")
             # Enviar mensaje privado de confirmación
@@ -247,7 +255,11 @@ async def handle_button(update: Update, context: CallbackContext):
             event['spots_left'] += 1
             
     
-    save_data(EVENTS)
+    try:
+        save_data(EVENTS)
+    except Exception as e:
+        # Handle unexpected error
+        print(f'Error al guardar los datos: {e}')
 
             await query.answer("¡Te has desapuntado con éxito!")
             # Enviar mensaje privado de confirmación
