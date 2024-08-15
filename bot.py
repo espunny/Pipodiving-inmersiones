@@ -103,10 +103,6 @@ async def inmersiones(update: Update, context: CallbackContext):
             await update.message.reply_text(text)
     user_id = update.effective_user.id
 
-    if not EVENTS:
-        await update.message.reply_text('No hay inmersiones disponibles.')
-        return
-
 
 async def crear_inmersion(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
