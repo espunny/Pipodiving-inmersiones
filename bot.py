@@ -5,16 +5,63 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import os
 
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
+AUTHORIZED_GROUP_ID = int(os.getenv('AUTHORIZED_GROUP_ID'))
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
 
 # Estado global de eventos
 EVENTS = {}
 ADMIN_IDS = {int(admin_id) for admin_id in os.getenv('ADMIN_IDS', '').split(',')} # Id de los administradores
 
+
 async def start(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+    await update.message.reply_text("¡Hola! Usa /inmersiones para ver los detalles de los eventos.")
     await update.message.reply_text('¡Hola! Usa /inmersiones para ver los detalles de los eventos.')
 
+
 async def inmersiones(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+    user_id = update.effective_user.id
+
+    if not EVENTS:
+        await update.message.reply_text('No hay eventos disponibles.')
+        return
+
+    for event_id, event in EVENTS.items():
+        text = (f"Evento ID: {event_id}\n"
+                f"Nombre: {event['name']}\n"
+                f"Plazas restantes: {event['spots_left']}\n"
+                f"Usuarios apuntados: {len(event['registered_users'])}")
+
+        # Obtener información de los usuarios apuntados
+        user_names = []
+        for uid in event['registered_users']:
+            user = await context.bot.get_chat_member(update.effective_chat.id, uid)
+            if user:
+                user_names.append(f"- {user.user.full_name} (ID: {uid})")
+
+        if user_names:
+            user_names_list = '\n'.join(user_names)
+            text += f"\nUsuarios apuntados:\n{user_names_list}"
+
+        buttons = []
+        if user_id in event['registered_users']:
+            buttons.append(InlineKeyboardButton("Desapuntarme", callback_data=f'unregister_{event_id}'))
+        else:
+            if event['spots_left'] > 0:
+                buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
+
+        if buttons:
+            reply_markup = InlineKeyboardMarkup([buttons])
+            await update.message.reply_text(text, reply_markup=reply_markup)
+        else:
+            await update.message.reply_text(text)
     user_id = update.effective_user.id
 
     if not EVENTS:
