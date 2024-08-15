@@ -54,7 +54,6 @@ ADMIN_IDS = set(data.get('admin_ids', []))  # Cargar administradores
 async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     await update.message.reply_text(f"El chat_id de este grupo es: {chat_id}")
-    await update.message.reply_text("EVENTS cargado:", EVENTS)
     if chat_id != AUTHORIZED_GROUP_ID:
         await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
         return
@@ -207,7 +206,7 @@ async def handle_button(update: Update, context: CallbackContext):
     event_id = int(query.data.split('_')[1])
 
     if event_id not in EVENTS:
-        await query.answer("Evento no encontrado.")
+        await query.answer("Inmersión no encontrada")
         return
 
     event = EVENTS[event_id]
