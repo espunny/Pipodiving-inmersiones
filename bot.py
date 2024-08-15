@@ -2,11 +2,11 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
-TOKEN = '' # Introduce aquí el token de Telegram
+TOKEN = '7273221162:AAEA3VPmXrjJLBSRgrvNmModFj-KajK8Wrg'
 
 # Estado global de eventos
 EVENTS = {}
-ADMIN_IDS = {}  # ID del administrador principal
+ADMIN_IDS = {6231303816}  # ID del administrador principal
 
 async def start(update: Update, context: CallbackContext):
     await update.message.reply_text('¡Hola! Usa /inmersiones para ver los detalles de los eventos.')
