@@ -47,4 +47,6 @@ COMANDOS:
 	•	Ejemplo de uso: /agregar_admin 987654321
 	•	Respuesta esperada: “Administrador con ID 987654321 añadido.”
 
+8. 	/getchatid (Obtiene el ID del grupo para establecerlo en las variable de entorno. De este modo el bot solamente funcionará en ese grupo)
+
 LIMITACIONES: ¡Atención, este bot está en versión alpha y aún no tiene persistencia! por lo que cuando se reinicie, se perderán todos los datos de las inmersiones.
