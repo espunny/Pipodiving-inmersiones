@@ -1,5 +1,17 @@
-# Pipodiving-inmersiones alpha v1
-Bot de Telegram para gestionar inmersiones de un club de buceo
+# Pipodiving-inmersiones Alpha V1
+Support on Telegram @t850model102
+
+Bot de Telegram para gestionar inmersiones de un club de buceo.
+Esta es una versión preliminar que aún no tiene persistencia.
+
+Se agradece cualquier idea o aportación.
+
+--------
+Telegram bot to manage dives of a diving club.
+This is a preliminary version that does not yet have persistence. 
+
+Contributions are welcome.
+--------
 
 COMANDOS:
 1.	/start
