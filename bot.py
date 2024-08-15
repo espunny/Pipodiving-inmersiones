@@ -12,6 +12,10 @@ WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
 EVENTS = {}
 ADMIN_IDS = {int(admin_id) for admin_id in os.getenv('ADMIN_IDS', '').split(',')} # Id de los administradores
 
+#Para obtener el ID del grupo
+async def get_chat_id(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    await update.message.reply_text(f"El chat_id de este grupo es: {chat_id}")
 
 async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
@@ -276,6 +280,7 @@ def main():
     application.add_handler(CommandHandler('eliminar_usuario', eliminar_usuario))
     application.add_handler(CommandHandler('agregar_admin', agregar_admin))
     application.add_handler(CallbackQueryHandler(handle_button))
+    application.add_handler(CommandHandler('getchatid', get_chat_id))
 
     # Configurar el webhook en lugar de run_polling
     application.run_webhook(
