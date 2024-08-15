@@ -163,8 +163,8 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
         if event_id in EVENTS:
             del EVENTS[event_id]
             await update.message.reply_text(f"Inmersión con ID {event_id} ha sido borrada.")
-    except Exception as e:
-        print(f"Error al guardar los datos: {e}")
+    except ValueError:
+        await update.message.reply_text("Por favor, introduce un número válido de ID.")
     
     try:
         save_data(EVENTS)
@@ -173,8 +173,6 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
 
         else:
             await update.message.reply_text("Inmersión no encontrada.")
-    except ValueError:
-        await update.message.reply_text("Por favor, introduce un número válido de ID.")
 
 async def eliminar_usuario(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
@@ -194,8 +192,8 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
             event = EVENTS[event_id]
             if target_user_id in event['registered_users']:
                 event['registered_users'].remove(target_user_id)
-    except Exception as e:
-        print(f"Error al guardar los datos: {e}")
+    except ValueError:
+        await update.message.reply_text("Por favor, introduce números válidos para ID de evento y usuario.")
     
     try:
         save_data(EVENTS)
@@ -214,8 +212,6 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
                 await update.message.reply_text("Usuario no está apuntado en este evento.")
         else:
             await update.message.reply_text("Evento no encontrado.")
-    except ValueError:
-        await update.message.reply_text("Por favor, introduce números válidos para ID de evento y usuario.")
 
 async def handle_button(update: Update, context: CallbackContext):
     query = update.callback_query
