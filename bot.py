@@ -5,7 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import os
 
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
-AUTHORIZED_GROUP_ID = int(os.getenv('AUTHORIZED_GROUP_ID'))
+AUTHORIZED_GROUP_ID = int(os.getenv('AUTHORIZED_GROUP_ID')) # GRUPO AUTORIZADO
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
 
 # Estado global de eventos
