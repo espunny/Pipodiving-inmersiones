@@ -1,3 +1,5 @@
+# Versión Alpha 1.2
+
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
@@ -8,7 +10,12 @@ import os
 def load_data(filename='events_data.json'):
     if os.path.exists(filename):
         with open(filename, 'r') as file:
-            return json.load(file)
+            data = json.load(file)
+            # Convertir listas de vuelta a sets
+            for event in data.get('events', {}).values():
+                event['registered_users'] = set(event['registered_users'])
+                event['blacklisted_users'] = set(event['blacklisted_users'])
+            return data
     return {}
 
 def save_data(data, filename='events_data.json'):
