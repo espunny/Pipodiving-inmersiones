@@ -143,10 +143,9 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     
     
     try:
-        save_data(EVENTS)
-    except Exception as e:
-        # Handle unexpected error
-        print(f'Error al guardar los datos: {e}')
+    save_data(EVENTS)
+except Exception as e:
+    print(f"Error al guardar los datos: {e}")
 
 
 async def borrar_inmersion(update: Update, context: CallbackContext):
@@ -166,7 +165,10 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
             await update.message.reply_text(f"Inmersión con ID {event_id} ha sido borrada.")
     
     
+    try:
     save_data(EVENTS)
+except Exception as e:
+    print(f"Error al guardar los datos: {e}")
 
         else:
             await update.message.reply_text("Inmersión no encontrada.")
@@ -193,7 +195,10 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
                 event['registered_users'].remove(target_user_id)
     
     
+    try:
     save_data(EVENTS)
+except Exception as e:
+    print(f"Error al guardar los datos: {e}")
 
                 event['spots_left'] += 1
                 event['blacklisted_users'].add(target_user_id)  # Añadir al blacklist
@@ -234,10 +239,9 @@ async def handle_button(update: Update, context: CallbackContext):
             
     
     try:
-        save_data(EVENTS)
-    except Exception as e:
-        # Handle unexpected error
-        print(f'Error al guardar los datos: {e}')
+    save_data(EVENTS)
+except Exception as e:
+    print(f"Error al guardar los datos: {e}")
 
             await query.answer("¡Te has apuntado con éxito!")
             # Enviar mensaje privado de confirmación
@@ -256,10 +260,9 @@ async def handle_button(update: Update, context: CallbackContext):
             
     
     try:
-        save_data(EVENTS)
-    except Exception as e:
-        # Handle unexpected error
-        print(f'Error al guardar los datos: {e}')
+    save_data(EVENTS)
+except Exception as e:
+    print(f"Error al guardar los datos: {e}")
 
             await query.answer("¡Te has desapuntado con éxito!")
             # Enviar mensaje privado de confirmación
