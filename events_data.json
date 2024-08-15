@@ -1,0 +1,13 @@
+{
+    "events": {
+        "1": {
+            "name": "Inmersión en Playa Bonita-Advanced",
+            "spots_left": 10,
+            "registered_users": [],
+            "blacklisted_users": []
+        }
+    },
+    "admin_ids": [
+        6231303816
+    ]
+}
