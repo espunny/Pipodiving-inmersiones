@@ -2,15 +2,33 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
+import json
 import os
+
+def load_data(filename='events_data.json'):
+    if os.path.exists(filename):
+        with open(filename, 'r') as file:
+            return json.load(file)
+    return {}
+
+def save_data(data, filename='events_data.json'):
+    try:
+        with open(filename, 'w') as file:
+            json.dump(data, file, indent=4)
+    except Exception as e:
+        print(f"Error al guardar los datos: {e}")
 
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
 AUTHORIZED_GROUP_ID = int(os.getenv('AUTHORIZED_GROUP_ID')) # GRUPO AUTORIZADO
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
 
 # Estado global de eventos
-EVENTS = {}
+# EVENTS = {}
 ADMIN_IDS = {int(admin_id) for admin_id in os.getenv('ADMIN_IDS', '').split(',')} # Id de los administradores
+
+data = load_data()  # Carga todos los datos al inicio
+EVENTS = data.get('events', {})  # Cargar inmersiones
+# ADMIN_IDS = set(data.get('admin_ids', []))  # Cargar administradores
 
 
 async def start(update: Update, context: CallbackContext):
@@ -112,8 +130,8 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     event_name = context.args[0]
     try:
         max_spots = int(context.args[1])
-        if max_spots <= 0 or max_spots > 10:
-            await update.message.reply_text("El número de plazas debe ser entre 1 y 10.")
+        if max_spots <= 0 or max_spots > 20:
+            await update.message.reply_text("El número de plazas debe ser entre 1 y 20.")
             return
     except ValueError:
         await update.message.reply_text("Por favor, introduce un número válido de plazas.")
@@ -126,7 +144,12 @@ async def crear_inmersion(update: Update, context: CallbackContext):
         'registered_users': set(),
         'blacklisted_users': set()
     }
-
+    
+    save_data({
+        'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
+        'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+    })
+    
     await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
 
 async def borrar_inmersion(update: Update, context: CallbackContext):
@@ -144,6 +167,10 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
         if event_id in EVENTS:
             del EVENTS[event_id]
             await update.message.reply_text(f"Inmersión con ID {event_id} ha sido borrada.")
+            save_data({
+                'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
+                'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+            })
         else:
             await update.message.reply_text("Inmersión no encontrada.")
     except ValueError:
@@ -171,6 +198,10 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
                 event['blacklisted_users'].add(target_user_id)  # Añadir al blacklist
                 await update.message.reply_text(f"Usuario con ID {target_user_id} ha sido eliminado del evento {event_id}.")
                 # Notificar al usuario eliminado
+                save_data({
+                    'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
+                    'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+                })
                 try:
                     await context.bot.send_message(target_user_id, f"Has sido eliminado del evento ID {event_id}.")
                 except Exception as e:
@@ -205,6 +236,10 @@ async def handle_button(update: Update, context: CallbackContext):
             event['spots_left'] -= 1
             await query.answer("¡Te has apuntado con éxito!")
             # Enviar mensaje privado de confirmación
+            save_data({
+                'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
+                'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+            })
             try:
                 await context.bot.send_message(user_id, f"Te has apuntado con éxito al evento ID {event_id}.")
             except Exception as e:
@@ -262,6 +297,10 @@ async def agregar_admin(update: Update, context: CallbackContext):
             new_admin_id = int(context.args[0])
             ADMIN_IDS.add(new_admin_id)
             await update.message.reply_text(f"Administrador con ID {new_admin_id} añadido.")
+            save_data({
+                'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
+                'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+            })
         except ValueError:
             await update.message.reply_text("Por favor, introduce un número válido de ID.")
     else:
