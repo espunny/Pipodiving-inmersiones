@@ -44,11 +44,11 @@ WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
 
 # Estado global de eventos
 # EVENTS = {}
-ADMIN_IDS = {int(admin_id) for admin_id in os.getenv('ADMIN_IDS', '').split(',')} # Id de los administradores
+# ADMIN_IDS = {int(admin_id) for admin_id in os.getenv('ADMIN_IDS', '').split(',')} # Id de los administradores
 
 data = load_data()  # Carga todos los datos al inicio
 EVENTS = data.get('events', {})  # Cargar inmersiones
-# ADMIN_IDS = set(data.get('admin_ids', []))  # Cargar administradores
+ADMIN_IDS = set(data.get('admin_ids', []))  # Cargar administradores
 
 
 async def start(update: Update, context: CallbackContext):
