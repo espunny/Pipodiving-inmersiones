@@ -97,38 +97,9 @@ async def inmersiones(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
 
     if not EVENTS:
-        await update.message.reply_text('No hay eventos disponibles.')
+        await update.message.reply_text('No hay inmersiones disponibles.')
         return
 
-    for event_id, event in EVENTS.items():
-        text = (f"Evento ID: {event_id}\n"
-                f"Nombre: {event['name']}\n"
-                f"Plazas restantes: {event['spots_left']}\n"
-                f"Usuarios apuntados: {len(event['registered_users'])}")
-
-        # Obtener información de los usuarios apuntados
-        user_names = []
-        for uid in event['registered_users']:
-            user = await context.bot.get_chat_member(update.effective_chat.id, uid)
-            if user:
-                user_names.append(f"- {user.user.full_name} (ID: {uid})")
-
-        if user_names:
-            user_names_list = '\n'.join(user_names)
-            text += f"\nUsuarios apuntados:\n{user_names_list}"
-
-        buttons = []
-        if user_id in event['registered_users']:
-            buttons.append(InlineKeyboardButton("Desapuntarme", callback_data=f'unregister_{event_id}'))
-        else:
-            if event['spots_left'] > 0:
-                buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
-
-        if buttons:
-            reply_markup = InlineKeyboardMarkup([buttons])
-            await update.message.reply_text(text, reply_markup=reply_markup)
-        else:
-            await update.message.reply_text(text)
 
 async def crear_inmersion(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
@@ -144,7 +115,7 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     try:
         max_spots = int(context.args[1])
         if max_spots <= 0 or max_spots > 20:
-            await update.message.reply_text("El número de plazas debe ser entre 1 y 20.")
+            await update.message.reply_text("El número de plazas debe ser entre 1 y 19.")
             return
     except ValueError:
         await update.message.reply_text("Por favor, introduce un número válido de plazas.")
