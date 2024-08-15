@@ -202,8 +202,13 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
 
 async def handle_button(update: Update, context: CallbackContext):
     query = update.callback_query
+    data = query.data  # Por ejemplo: "register_1" o "unregister_1"
+
+    # Extracción del `event_id`
+    event_id = int(data.split('_')[1])
+    
     user_id = query.from_user.id
-    event_id = int(query.data.split('_')[1])
+    # event_id = int(query.data.split('_')[1])
 
     if event_id not in EVENTS:
         await query.answer("Inmersión no encontrada")
