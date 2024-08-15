@@ -241,10 +241,10 @@ async def handle_button(update: Update, context: CallbackContext):
             event['registered_users'].remove(user_id)
             event['spots_left'] += 1
             await query.answer("¡Te has desapuntado con éxito!")
-                save_data({
-                    'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                    'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
-                })
+            save_data({
+                'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
+                'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+            })
             try:
                 await context.bot.send_message(user_id, f"Te has desapuntado del evento ID {event_id}.")
             except Exception as e:
