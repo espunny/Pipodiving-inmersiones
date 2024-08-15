@@ -21,7 +21,7 @@ async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     if chat_id != AUTHORIZED_GROUP_ID:
         await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
-        return
+        #return
     await update.message.reply_text("¡Hola! Usa /inmersiones para ver los detalles de los eventos.")
     await update.message.reply_text('¡Hola! Usa /inmersiones para ver los detalles de los eventos.')
 
