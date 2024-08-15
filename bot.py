@@ -9,7 +9,7 @@ WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
 
 # Estado global de eventos
 EVENTS = {}
-ADMIN_IDS = {os.getenv('ADMIN_IDS')}  # ID del administrador principal
+ADMIN_IDS = {int(admin_id) for admin_id in os.getenv('ADMIN_IDS', '').split(',')} # Id de los administradores
 
 async def start(update: Update, context: CallbackContext):
     await update.message.reply_text('¡Hola! Usa /inmersiones para ver los detalles de los eventos.')
