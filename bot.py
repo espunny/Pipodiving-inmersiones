@@ -141,6 +141,7 @@ async def crear_inmersion(update: Update, context: CallbackContext):
 
     await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
     
+    
     save_data(EVENTS)
 
 
@@ -159,6 +160,7 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
         if event_id in EVENTS:
             del EVENTS[event_id]
             await update.message.reply_text(f"Inmersión con ID {event_id} ha sido borrada.")
+    
     
     save_data(EVENTS)
 
@@ -185,6 +187,7 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
             event = EVENTS[event_id]
             if target_user_id in event['registered_users']:
                 event['registered_users'].remove(target_user_id)
+    
     
     save_data(EVENTS)
 
@@ -225,6 +228,7 @@ async def handle_button(update: Update, context: CallbackContext):
             event['registered_users'].add(user_id)
             event['spots_left'] -= 1
             
+    
     save_data(EVENTS)
 
             await query.answer("¡Te has apuntado con éxito!")
@@ -242,6 +246,7 @@ async def handle_button(update: Update, context: CallbackContext):
             event['registered_users'].remove(user_id)
             event['spots_left'] += 1
             
+    
     save_data(EVENTS)
 
             await query.answer("¡Te has desapuntado con éxito!")
