@@ -5,6 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import os
 
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
+WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
 
 # Estado global de eventos
 EVENTS = {}
@@ -229,7 +230,13 @@ def main():
     application.add_handler(CommandHandler('agregar_admin', agregar_admin))
     application.add_handler(CallbackQueryHandler(handle_button))
 
-    application.run_polling()
+    # Configurar el webhook en lugar de run_polling
+    application.run_webhook(
+        listen="0.0.0.0",  # Escuchar en todas las interfaces
+        port=int(os.getenv('PORT', '8443')),  # Usar el puerto 8443 por defecto
+        url_path=TOKEN,  # Usar el token como parte de la URL del webhook
+        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"  # La URL completa para el webhook
+    )
 
 if __name__ == '__main__':
     main()
