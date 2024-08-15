@@ -13,8 +13,21 @@ def load_data(filename='events_data.json'):
 
 def save_data(data, filename='events_data.json'):
     try:
+        # Convertir todos los sets a listas antes de guardar
+        data_copy = {
+            'events': {
+                event_id: {
+                    **event,
+                    'registered_users': list(event['registered_users']),
+                    'blacklisted_users': list(event['blacklisted_users'])
+                }
+                for event_id, event in data['events'].items()
+            },
+            'admin_ids': list(data['admin_ids'])  # Si ADMIN_IDS es un set
+        }
+        
         with open(filename, 'w') as file:
-            json.dump(data, file, indent=4)
+            json.dump(data_copy, file, indent=4)
     except Exception as e:
         print(f"Error al guardar los datos: {e}")
 
