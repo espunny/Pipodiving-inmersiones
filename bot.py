@@ -176,7 +176,7 @@ async def inmersiones(update: Update, context: CallbackContext):
 
     for event_id, event in EVENTS.items():
         text = (f"Evento ID: {event_id}\n"
-                f"Nombre: {event['name']}\n\n"
+                text = f"**{event['name']}**\n\n"
                 f"Plazas restantes: {event['spots_left']}\n"
                 f"Usuarios apuntados: {len(event['registered_users'])}")
 
