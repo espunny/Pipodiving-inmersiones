@@ -23,7 +23,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
 
 ### Comandos Generales
 
-¡¡ADVERTENCIA. NO SE PUEDEN USAR ESPACIOS EN LOS COMANDOS!!
+¡¡ADVERTENCIA. ACTUALMENTE NO SE PUEDEN USAR ESPACIOS EN LOS COMANDOS!!
 
 1. **`/start`**
    - **Descripción**: Inicia el bot y muestra un mensaje de bienvenida con el `chat_id` del grupo autorizado.
