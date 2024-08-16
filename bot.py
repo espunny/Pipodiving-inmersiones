@@ -180,6 +180,7 @@ async def inmersiones(update: Update, context: CallbackContext):
         for uid in event['registered_users']:
             user = await context.bot.get_chat_member(update.effective_chat.id, uid)
             if user:
+                user_names.append(f"- {user.user.full_name}")
                 # Omito esta información en los usuarios que no son admins
                 # user_names.append(f"- {user.user.full_name} (ID: {uid})")
 
