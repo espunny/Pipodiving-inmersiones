@@ -36,8 +36,10 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      ```
      /inmersiones
      ```
+### Comandos para Administradores
+**Nota**: Estos comandos solo pueden ser ejecutados por administradores.
 
-3. **`/inmersiones_detalles`**
+1. **`/inmersiones_detalles`**
    - **Descripción**: Muestra detalles adicionales de las inmersiones, incluyendo observaciones si existen.
    - **Uso**: `/inmersiones_detalles`
    - **Ejemplo**:
@@ -45,11 +47,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      /inmersiones_detalles
      ```
 
-### Comandos para Administradores
-
-**Nota**: Estos comandos solo pueden ser ejecutados por administradores.
-
-1. **`/crear_inmersion <ID del evento> <Nombre del evento> <Plazas>`**
+2. **`/crear_inmersion <ID del evento> <Nombre del evento> <Plazas>`**
    - **Descripción**: Crea una nueva inmersión con el ID y nombre especificados, y con un número determinado de plazas.
    - **Uso**: `/crear_inmersion <ID del evento> <Nombre del evento> <Plazas>`
    - **Ejemplo**:
@@ -57,7 +55,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      /crear_inmersion 123 "09:20-Sábado-Advanced" 12
      ```
 
-2. **`/borrar_inmersion <ID del evento>`**
+3. **`/borrar_inmersion <ID del evento>`**
    - **Descripción**: Elimina una inmersión específica.
    - **Uso**: `/borrar_inmersion <ID del evento>`
    - **Ejemplo**:
@@ -65,7 +63,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      /borrar_inmersion 123
      ```
 
-3. **`/observaciones <ID del evento> <ID del usuario> <Observaciones>`**
+4. **`/observaciones <ID del evento> <ID del usuario> <Observaciones>`**
    - **Descripción**: Añade una observación para un usuario específico en una inmersión específica.
    - **Uso**: `/observaciones <ID del evento> <ID del usuario> <Observaciones>`
    - **Ejemplo**:
@@ -73,7 +71,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      /observaciones 123 456 "CursoOW-Necesita_equipo"
      ```
 
-4. **`/eliminar_usuario <ID del evento> <ID del usuario>`**
+5. **`/eliminar_usuario <ID del evento> <ID del usuario>`**
    - **Descripción**: Elimina a un usuario específico de una inmersión.
    - **Uso**: `/eliminar_usuario <ID del evento> <ID del usuario>`
    - **Ejemplo**:
@@ -81,7 +79,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      /eliminar_usuario 123 456
      ```
 
-5. **`/purgar_datos`**
+6. **`/purgar_datos`**
    - **Descripción**: Purga todas las inmersiones y observaciones del sistema.
    - **Uso**: `/purgar_datos`
    - **Ejemplo**:
