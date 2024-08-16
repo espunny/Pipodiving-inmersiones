@@ -75,12 +75,16 @@ async def start(update: Update, context: CallbackContext):
         await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
         return
     await update.message.reply_text("¡Hola! Usa /inmersiones para ver los detalles de los eventos.")
-    await update.message.reply_text('¡Hola! Usa /inmersiones para ver los detalles de los eventos.')
 
 async def observaciones(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+    
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes permiso para usar este comando.")
+        await update.message.reply_text("No tienes permiso para añadir observaciones.")
         return
     
     try:
@@ -109,7 +113,7 @@ async def inmersiones(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
 
     if not EVENTS:
-        await update.message.reply_text('No hay eventos disponibles.')
+        await update.message.reply_text('No hay inmersiones disponibles.')
         return
 
     for event_id, event in EVENTS.items():
@@ -148,31 +152,45 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
     if chat_id != AUTHORIZED_GROUP_ID:
         await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
         return
-    
+
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes permiso para ejecutar este comando.")
+        await update.message.reply_text("No tienes permiso para ver los detalles de las inmersiones.")
         return
-    
-    respuesta = "Detalles de la inmersión:\n"
-    
-    for evento_id, evento in EVENTS.items():
-        respuesta += f"\nEvento {evento_id}:\n"
-        for usuario_id in evento['registered_users']:
-            # Obtener el objeto User desde el contexto o la base de datos
-            user = await context.bot.get_chat_member(update.message.chat_id, usuario_id)
-            nombre_usuario = user.user.username or user.user.full_name
-            observacion = OBSERVACIONES.get(evento_id, {}).get(usuario_id, "")
-            if observacion:
-                respuesta += f"- {nombre_usuario} - {usuario_id} * {observacion}\n"
-            else:
-                respuesta += f"- {nombre_usuario} - {usuario_id}\n"
-    
-    await update.message.reply_text(respuesta or "No hay inmersiones disponibles.")
+
+    if not EVENTS:
+        await update.message.reply_text('No hay inmersiones disponibles.')
+        return
+
+    for event_id, event in EVENTS.items():
+        text = (f"Evento ID: {event_id}\n"
+                f"Nombre: {event['name']}\n\n"
+                f"Plazas restantes: {event['spots_left']}\n"
+                f"Usuarios apuntados: {len(event['registered_users'])}")
+
+        # Obtener información de los usuarios apuntados
+        user_details = []
+        for uid in event['registered_users']:
+            user = await context.bot.get_chat_member(update.effective_chat.id, uid)
+            if user:
+                # Obtener observación si existe
+                observacion = OBSERVACIONES.get(event_id, {}).get(uid, "Sin observaciones")
+                user_details.append(f"{user.user.full_name} - {uid} - {observacion}")
+
+        if user_details:
+            user_details_list = '\n'.join(user_details)
+            text += f"\n\nUsuarios en la inmersión:\n{user_details_list}"
+
+        await update.message.reply_text(text)
 
 
 
 async def crear_inmersion(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+        
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
         await update.message.reply_text("No tienes permiso para crear inmersiones.")
@@ -208,6 +226,11 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
 
 async def borrar_inmersion(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+        
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
         await update.message.reply_text("No tienes permiso para borrar inmersiones.")
@@ -232,6 +255,11 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
         await update.message.reply_text("Por favor, introduce un número válido de ID.")
 
 async def eliminar_usuario(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+        
     user_id = update.effective_user.id
     if user_id not in ADMIN_IDS:
         await update.message.reply_text("No tienes permiso para eliminar usuarios.")
@@ -269,6 +297,11 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
         await update.message.reply_text("Por favor, introduce números válidos para ID de evento y usuario.")
 
 async def handle_button(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+        
     query = update.callback_query
     user_id = query.from_user.id
     data = query.data  # Ejemplo: "register_1" o "unregister_1"
@@ -352,6 +385,16 @@ async def handle_button(update: Update, context: CallbackContext):
     await query.edit_message_text(text, reply_markup=reply_markup)
 
 async def agregar_admin(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+        
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("No tienes permiso para agregar administradores.")
+        return
+        
     user_id = update.effective_user.id
     if user_id in ADMIN_IDS:
         if len(context.args) != 1:
