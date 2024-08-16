@@ -101,15 +101,15 @@ async def observaciones(update: Update, context: CallbackContext):
         return
     
     try:
-        evento_id = context.args[0]
-        usuario_id = context.args[1]
+        evento_id = int(context.args[0])  # Convertir event_id a entero
+        usuario_id = int(context.args[1])  # Convertir usuario_id a entero
         observacion = ' '.join(context.args[2:])
 
         # Verificar que el evento existe en EVENTS
         if evento_id not in EVENTS:
             await update.message.reply_text(f"No se encontró el evento con ID: {evento_id}")
             return
-        
+
         # Asegurarse de que el campo 'observaciones' exista en el evento
         if 'observaciones' not in EVENTS[evento_id]:
             EVENTS[evento_id]['observaciones'] = {}
@@ -131,6 +131,7 @@ async def observaciones(update: Update, context: CallbackContext):
         })
     except (IndexError, ValueError):
         await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
+
 
 
 
