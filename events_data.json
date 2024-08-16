@@ -1,25 +1,3 @@
 {
-    "events": {
-        "123": {
-            "name": "Inmersión en el arrecife",
-            "spots_left": 12,
-            "registered_users": [6231303816],
-            "blacklisted_users": [11111]
-        },
-        "456": {
-            "name": "Inmersión en Submarino",
-            "spots_left": 12,
-            "registered_users": [6231303816],
-            "blacklisted_users": []
-        }
-    },
     "admin_ids": [6231303816],
-    "observaciones": {
-        "123": {
-            "6231303816": "No necesita equipo"
-        },
-        "456": {
-            "6231303816": "Necesita una máscara"
-        }
-    }
 }
