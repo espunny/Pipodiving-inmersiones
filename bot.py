@@ -475,8 +475,7 @@ async def hacerme_admin(update: Update, context: CallbackContext):
     # Guardar los cambios
     guardar_datos()
 
-    await update.message.reply_text("¡Ahora eres administrador!")
-
+    await update.message.reply_text("¡Ahora eres administrador! Borra estos mensajes para que nadie descubra tu comando secreto. :)")
 
 def main():
     application = Application.builder().token(TOKEN).build()
