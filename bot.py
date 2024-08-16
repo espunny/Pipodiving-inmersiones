@@ -244,16 +244,14 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
         user_details = []
 
         for uid in event['registered_users']:
-            # En un chat privado, solo muestra el usuario actual
-            if update.effective_chat.type == 'private' and uid != user_id:
-                continue
-
             try:
                 if update.effective_chat.type in ['group', 'supergroup']:
                     user = await context.bot.get_chat_member(chat_id, uid)
                     full_name = user.user.full_name
                 else:
-                    full_name = update.effective_user.full_name
+                    # En un chat privado, usa `context.bot.get_chat_member` con `chat_id` y `uid`
+                    user = await context.bot.get_chat_member(chat_id, uid)
+                    full_name = user.user.full_name
 
                 # Obtener observación si existe
                 observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
