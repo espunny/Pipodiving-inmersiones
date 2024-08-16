@@ -1,10 +1,12 @@
 {
     "events": {
         "123": {
+            "name": "Inmersión en el arrecife",
             "registered_users": [6231303816],
             "blacklisted_users": [11111]
         },
         "456": {
+            "name": "Inmersión en Submarino",
             "registered_users": [6231303816],
             "blacklisted_users": []
         }
