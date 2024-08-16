@@ -250,7 +250,7 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
         user_details = []
 
         if update.effective_chat.type in ['group', 'supergroup']:
-            # Obtener información de los usuarios apuntados en un grupo
+            # En un grupo, obtener el nombre del usuario y mostrar todos los datos
             for uid in event['registered_users']:
                 try:
                     user = await context.bot.get_chat_member(chat_id, uid)
@@ -264,19 +264,20 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
                 except telegram.error.BadRequest:
                     user_details.append(f"Usuario {uid} - Información no disponible")
         else:
-            # En un chat privado, mostrar solo la información del usuario que está interactuando
-            observacion = OBSERVACIONES.get(event_id, {}).get(user_id, "")
-            if observacion:
-                user_details.append(f"{update.effective_user.full_name} - {user_id} - {observacion}")
-            else:
-                user_details.append(f"{update.effective_user.full_name} - {user_id}")
+            # En un chat privado, mostrar solo el user_id y la observación
+            for uid in event['registered_users']:
+                observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
+                if observacion:
+                    user_details.append(f"{uid} - {observacion}")
+                else:
+                    user_details.append(f"{uid} - Sin observaciones")
 
         if user_details:
             user_details_list = '\n'.join(user_details)
             text += f"\n\nUsuarios en la inmersión:\n{user_details_list}"
 
         await update.message.reply_text(text)
-
+        
 async def crear_inmersion(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
