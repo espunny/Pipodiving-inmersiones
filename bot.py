@@ -314,8 +314,15 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
                 event['registered_users'].remove(target_user_id)
                 event['spots_left'] += 1
                 event['blacklisted_users'].add(target_user_id)  # Añadir al blacklist
-                await update.message.reply_text(f"Usuario con ID {target_user_id} ha sido eliminado del evento {event_id}.")
+                
                 # Notificar al usuario eliminado
+                if update.message:
+                    await update.message.reply_text(f"Usuario con ID {target_user_id} ha sido eliminado del evento {event_id}.")
+                else:
+                    # Usar otra forma de enviar el mensaje si update.message es None
+                    chat_id = update.effective_chat.id
+                    await context.bot.send_message(chat_id=chat_id, text=f"Usuario con ID {target_user_id} ha sido eliminado del evento {event_id}.")
+                
                 save_data({
                     'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
                     'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
