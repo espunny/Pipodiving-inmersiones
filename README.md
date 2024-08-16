@@ -24,6 +24,8 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
 
 ### Comandos Generales
 
+¡¡ADVERTENCIA. NO SE PUEDEN USAR ESPACIOS EN LOS COMANDOS!!
+
 1. **`/start`**
    - **Descripción**: Inicia el bot y muestra un mensaje de bienvenida con el `chat_id` del grupo autorizado.
    - **Uso**: Simplemente escribe `/start` en el chat.
@@ -53,7 +55,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
    - **Uso**: `/crear_inmersion <ID del evento> <Nombre del evento> <Plazas>`
    - **Ejemplo**:
      ```
-     /crear_inmersion 123 "Inmersión en el arrecife" 10
+     /crear_inmersion 123 "09:20-Sábado-Advanced" 12
      ```
 
 2. **`/borrar_inmersion <ID del evento>`**
@@ -69,7 +71,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
    - **Uso**: `/observaciones <ID del evento> <ID del usuario> <Observaciones>`
    - **Ejemplo**:
      ```
-     /observaciones 123 456 "Necesita equipo especial"
+     /observaciones 123 456 "CursoOW-Necesita_equipo"
      ```
 
 4. **`/eliminar_usuario <ID del evento> <ID del usuario>`**
