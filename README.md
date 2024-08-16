@@ -4,7 +4,7 @@ Bot de Telegram para gestionar inmersiones de un club de buceo.
 Esta es una versión preliminar.
 
 Se agradece cualquier idea o aportación.
-Se puede probar el funcionamiento en el siguiente grupo privado.
+Se puede probar el funcionamiento en el siguiente grupo privado. Solamente tenéis que poner el símbolo "/" y se mostrarán los comandos disponibles.
 [https://t.me/+pAmFphtBgNo5MDU8](https://t.me/+pAmFphtBgNo5MDU8)
 
 Si intentas añadir el bot a tu grupo, no funcionará. Tendrás que crear tu propio bot con el código fuente de esta página y asignar el ID de tu Grupo en las variables de tu SO.
