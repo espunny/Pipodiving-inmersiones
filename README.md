@@ -99,4 +99,4 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
 - Envío de correos electrónicos de confirmación.
 - Gestión de Bonos de inmersiones.
 
-Este bot está en versión Alpha 1.3, y se esperan futuras mejoras y correcciones.
+Este bot está en versión Beta 1, es funcional, pero se esperan futuras mejoras y correcciones.
