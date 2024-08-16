@@ -96,7 +96,15 @@ async def observaciones(update: Update, context: CallbackContext):
             OBSERVACIONES[evento_id] = {}
         
         OBSERVACIONES[evento_id][usuario_id] = observacion
+
+        # Actualizar directamente EVENTS si necesitas que las observaciones sean parte de él
+        if 'observaciones' not in EVENTS[evento_id]:
+            EVENTS[evento_id]['observaciones'] = {}
+        
+        EVENTS[evento_id]['observaciones'][usuario_id] = observacion
+        
         await update.message.reply_text(f"Observación añadida para el usuario {usuario_id} en el evento {evento_id}.")
+        
         save_data({
             'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
             'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
