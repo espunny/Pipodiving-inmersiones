@@ -12,16 +12,21 @@ def load_data(filename='events_data.json'):
         with open(filename, 'r') as file:
             data = json.load(file)
             
-            # Convertir listas de vuelta a sets para los usuarios registrados y en lista negra
-            for event in data.get('events', {}).values():
-                event['registered_users'] = set(event['registered_users'])
-                event['blacklisted_users'] = set(event['blacklisted_users'])
+            # Convertir las claves de los eventos a enteros y listas a conjuntos
+            events = {
+                int(event_id): {
+                    **event,
+                    'registered_users': set(event.get('registered_users', [])),
+                    'blacklisted_users': set(event.get('blacklisted_users', []))
+                } 
+                for event_id, event in data.get('events', {}).items()
+            }
             
             # Cargar observaciones si existen
             observaciones = data.get('observaciones', {})
             
             return {
-                'events': data.get('events', {}),
+                'events': events,
                 'admin_ids': set(data.get('admin_ids', [])),
                 'observaciones': observaciones
             }
