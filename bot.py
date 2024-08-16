@@ -67,7 +67,8 @@ def guardar_datos():
 
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
 # AUTHORIZED_GROUP_ID = os.getenv('AUTHORIZED_GROUP_ID') # GRUPOS AUTORIZADOS
-AUTHORIZED_GROUP_IDS = set(os.getenv('AUTHORIZED_GROUP_ID', '').split(',')) # Introduciremos los IDS separados por comas y un espacio.
+# Obtener y convertir los IDs de grupo a enteros
+AUTHORIZED_GROUP_IDS = set(map(int, os.getenv('AUTHORIZED_GROUP_ID', '').split(',')))
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
 OBSERVACIONES = {} # Observaciones que pueden añadir los administradores.
 
