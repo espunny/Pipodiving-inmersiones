@@ -202,13 +202,15 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
 
 async def handle_button(update: Update, context: CallbackContext):
     query = update.callback_query
-    data = query.data  # Por ejemplo: "register_1" o "unregister_1"
-
-    # Extracción del `event_id`
-    event_id = int(data.split('_')[1])
-    
     user_id = query.from_user.id
-    # event_id = int(query.data.split('_')[1])
+    data = query.data  # Ejemplo: "register_1" o "unregister_1"
+
+    # Extracción del event_id
+    try:
+        event_id = int(data.split('_')[1])
+    except (IndexError, ValueError) as e:
+        await query.answer("Error al procesar la solicitud.")
+        return
 
     if event_id not in EVENTS:
         await query.answer("Inmersión no encontrada")
@@ -217,7 +219,7 @@ async def handle_button(update: Update, context: CallbackContext):
     event = EVENTS[event_id]
 
     if user_id in event['blacklisted_users']:
-        await query.answer("No puedes apuntarte a este evento.")
+        await query.answer("No puedes apuntarte a esta inmersión.")
         return
 
     if query.data.startswith('register'):
