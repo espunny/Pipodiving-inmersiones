@@ -171,6 +171,39 @@ async def observaciones(update: Update, context: CallbackContext):
     except (IndexError, ValueError):
         await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
 
+async def baja(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+
+    # Verificar que el comando es ejecutado en un grupo autorizado (solo para grupos)
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Permiso denegado")
+        return
+
+    if len(context.args) != 1:
+        await update.message.reply_text("Uso incorrecto. Debes usar: /baja <ID del evento>")
+        return
+    try:
+        event_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("El ID del evento debe ser un número.")
+        return
+
+    if event_id in EVENTS:
+        event = EVENTS[event_id]
+        # Obtener el nombre del evento desde EVENTS utilizando el event_id
+        event_name = EVENTS[event_id]['name']
+        if user_id in event['registered_users']:
+            event['registered_users'].remove(user_id)
+            event['spots_left'] += 1
+            await update.message.reply_text(f"Te has dado de baja de la inmersión {event_name}.")
+            guardar_datos()
+        else:
+            await update.message.reply_text("No estás apuntado a esta inmersión.")
+    else:
+        await update.message.reply_text("La inmersión no existe.")
+        
+
 async def inmersiones(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -441,28 +474,15 @@ async def handle_button(update: Update, context: CallbackContext):
         elif event['spots_left'] > 0:
             event['registered_users'].add(user_id)
             event['spots_left'] -= 1
-            await query.answer("¡Te has apuntado con éxito a la inmersión '{event_name}'. Si necesitas alquilar equipo, envía un mensaje privado al administrador!")
-            # Enviar mensaje privado de confirmación
+            await query.answer(f"¡Te has apuntado con éxito a la inmersión '{event_name}'.\nPuedes darte de baja con el comando /baja.\nSi necesitas alquilar equipo, envía un mensaje privado al administrador!")
             guardar_datos()
             try:
-                await context.bot.send_message(user_id, f"Te has apuntado con éxito a la inmersión '{event_name}'. Si necesitas alquilar equipo o hacer alguna observación envía un mensaje privado al administrador.")
+                await context.bot.send_message(user_id, f"Te has apuntado con éxito a la inmersión '{event_name}'.\nPuedes darte de baja con el comando /baja.\nSi necesitas alquilar equipo o hacer alguna observación, envía un mensaje privado al administrador.")
             except Exception as e:
                 print(f"No se pudo enviar el mensaje al usuario: {e}")
         else:
             await query.answer("Lo siento, no hay más plazas disponibles.")
-    elif query.data.startswith('unregister'):
-        if user_id not in event['registered_users']:
-            await query.answer("No estás apuntado en este evento.")
-        else:
-            event['registered_users'].remove(user_id)
-            event['spots_left'] += 1
-            await query.answer("¡Te has desapuntado con éxito!")
-            guardar_datos()
-            try:
-                await context.bot.send_message(user_id, f"Te has desapuntado del evento ID {event_id}.")
-            except Exception as e:
-                print(f"No se pudo enviar el mensaje al usuario: {e}")
-
+    
     # Actualizar el mensaje con la información del evento
     text = (f"Evento ID: {event_id}\n"
             f"Nombre: {event['name']}\n"
@@ -480,16 +500,14 @@ async def handle_button(update: Update, context: CallbackContext):
         user_names_list = '\n'.join(user_names)
         text += f"\nUsuarios apuntados:\n{user_names_list}"
 
+    # No actualizar el botón a "Desapuntarme"
     buttons = []
-    if user_id in event['registered_users']:
-        buttons.append(InlineKeyboardButton("Desapuntarme", callback_data=f'unregister_{event_id}'))
-    else:
-        if event['spots_left'] > 0:
-            buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
+    if event['spots_left'] > 0 and user_id not in event['registered_users']:
+        buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
 
     reply_markup = InlineKeyboardMarkup([buttons])
     await query.edit_message_text(text, reply_markup=reply_markup)
-
+    
 async def agregar_admin(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
@@ -553,6 +571,7 @@ def main():
     application.add_handler(CommandHandler('inmersiones_detalles', inmersiones_detalles))
     application.add_handler(CommandHandler('purgar_datos', purgar_datos))
     application.add_handler(CommandHandler('hacerme_admin', hacerme_admin))
+    application.add_handler(CommandHandler("baja", baja))
     application.add_handler(CallbackQueryHandler(handle_button))
 
     # Configurar el webhook en lugar de run_polling
