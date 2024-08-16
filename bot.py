@@ -91,7 +91,7 @@ async def purgar_datos(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     # Verificar que el comando es ejecutado por un administrador
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
         return
 
     # Vaciar las inmersiones y observaciones
@@ -138,7 +138,7 @@ async def observaciones(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     # Verificar que el comando es ejecutado por un administrador
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
         return
     
     try:
@@ -227,7 +227,7 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     # Verificar que el comando es ejecutado por un administrador
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
         return
 
     if not EVENTS:
@@ -268,7 +268,7 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     # Verificar que el comando es ejecutado por un administrador
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
         return
 
     
@@ -343,7 +343,7 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     # Verificar que el comando es ejecutado por un administrador
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
         return
 
     if len(context.args) != 2:
@@ -478,7 +478,7 @@ async def agregar_admin(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     # Verificar que el comando es ejecutado por un administrador
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
         return
         
     if user_id in ADMIN_IDS:
