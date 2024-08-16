@@ -1,4 +1,4 @@
-# Versión Alpha 1.3
+# Versión Beta 1
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
