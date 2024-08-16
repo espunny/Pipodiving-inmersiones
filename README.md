@@ -8,7 +8,7 @@ Se puede probar el funcionamiento en el siguiente grupo privado.
 [https://t.me/+pAmFphtBgNo5MDU8](https://t.me/+pAmFphtBgNo5MDU8)
 
 Si intentas añadir el bot a tu grupo, no funcionará. Tendrás que crear tu propio bot con el código fuente de esta página y asignar el ID de tu Grupo en las variables de tu SO.
-Si necesitas ayuda profesional para implantarlo en tu Grupo, puedes contactar conmigo en privado por Telegram: @t850model102
+Si necesitas ayuda profesional para implantarlo en tu grupo de telegram, puedes contactar conmigo en privado por Telegram: @t850model102
 
 --------
 Telegram bot to manage dives of a diving club.
