@@ -65,20 +65,6 @@ def guardar_datos():
         'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
     })
 
-def permisos_grupo(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        context.bot.send_message(chat_id=chat_id, text="Este bot NO tiene permiso para funcionar en este grupo.")
-        return
-
-def permisos_usuario(update: Update, context: CallbackContext):
-    user_id = update.effective_user.id
-    # Verificar que el comando es ejecutado por un administrador
-    if user_id not in ADMIN_IDS:
-        context.bot.send_message(chat_id=update.effective_chat.id, text="No tienes permiso para ejecutar este comando.")
-        return
-
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
 # AUTHORIZED_GROUP_ID = os.getenv('AUTHORIZED_GROUP_ID') # GRUPOS AUTORIZADOS
 AUTHORIZED_GROUP_IDS = set(os.getenv('AUTHORIZED_GROUP_ID', '').split(',')) # Introduciremos los IDS separados por comas y un espacio.
@@ -95,8 +81,17 @@ ADMIN_IDS = set(data.get('admin_ids', []))  # Cargar administradores
 
 
 async def purgar_datos(update: Update, context: CallbackContext):
-    permisos_grupo()
-    permisos_usuario()
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
+        
+    user_id = update.effective_user.id
+    # Verificar que el comando es ejecutado por un administrador
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        return
 
     # Vaciar las inmersiones y observaciones
     EVENTS.clear()
@@ -112,7 +107,11 @@ async def start(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     await update.message.reply_text(f"El chat_id de este grupo es: {chat_id}")
 
-    permisos_grupo()
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
 
    # Cargar y volcar el contenido del archivo JSON
     try:
@@ -129,8 +128,17 @@ async def start(update: Update, context: CallbackContext):
     await update.message.reply_text("¡Hola! Usa /inmersiones para ver los detalles de los eventos.")
 
 async def observaciones(update: Update, context: CallbackContext):
-    permisos_grupo()
-    permisos_usuario()
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
+        
+    user_id = update.effective_user.id
+    # Verificar que el comando es ejecutado por un administrador
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        return
     
     try:
         evento_id = int(context.args[0])  # Convertir event_id a entero
@@ -163,7 +171,11 @@ async def observaciones(update: Update, context: CallbackContext):
         await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
 
 async def inmersiones(update: Update, context: CallbackContext):
-    permisos_grupo()
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
     
     user_id = update.effective_user.id
 
@@ -205,12 +217,16 @@ async def inmersiones(update: Update, context: CallbackContext):
     
 
 async def inmersiones_detalles(update: Update, context: CallbackContext):
-    permisos_grupo()
-    permisos_usuario()
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
 
     user_id = update.effective_user.id
+    # Verificar que el comando es ejecutado por un administrador
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes permiso para ver los detalles de las inmersiones.")
+        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
         return
 
     if not EVENTS:
@@ -242,10 +258,17 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
         await update.message.reply_text(text)
 
 async def crear_inmersion(update: Update, context: CallbackContext):
-    permisos_grupo()
-    permisos_usuario()
-    
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
+        
     user_id = update.effective_user.id
+    # Verificar que el comando es ejecutado por un administrador
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        return
 
     
     if len(context.args) < 2:
@@ -284,8 +307,9 @@ async def crear_inmersion(update: Update, context: CallbackContext):
         
 async def borrar_inmersion(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
-    if chat_id != AUTHORIZED_GROUP_ID:
-        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
         return
         
     user_id = update.effective_user.id
@@ -309,10 +333,17 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
         await update.message.reply_text("Por favor, introduce un número válido de ID.")
 
 async def eliminar_usuario(update: Update, context: CallbackContext):
-    permisos_grupo()
-    permisos_usuario()
-    
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
+
     user_id = update.effective_user.id
+    # Verificar que el comando es ejecutado por un administrador
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        return
 
     if len(context.args) != 2:
         await update.message.reply_text("Uso: /eliminar_usuario <evento_id> <user_id>")
@@ -350,7 +381,11 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
         await update.message.reply_text("Por favor, introduce números válidos para ID de evento y usuario.")
 
 async def handle_button(update: Update, context: CallbackContext):
-    permisos_grupo()
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
     
     query = update.callback_query
     user_id = query.from_user.id
@@ -433,11 +468,18 @@ async def handle_button(update: Update, context: CallbackContext):
     await query.edit_message_text(text, reply_markup=reply_markup)
 
 async def agregar_admin(update: Update, context: CallbackContext):
-    permisos_grupo()
-    permisos_usuario()
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
+    
     user_id = update.effective_user.id
+    # Verificar que el comando es ejecutado por un administrador
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para ejecutar este comando.")
+        return
         
-    user_id = update.effective_user.id
     if user_id in ADMIN_IDS:
         if len(context.args) != 1:
             await update.message.reply_text("Uso: /agregar_admin <ID>")
@@ -454,7 +496,12 @@ async def agregar_admin(update: Update, context: CallbackContext):
         await update.message.reply_text("No tienes permiso para usar este comando.")
 
 async def hacerme_admin(update: Update, context: CallbackContext):
-    permisos_grupo()
+    chat_id = update.effective_chat.id
+    # Verificar que el comando es ejecutado en un grupo autorizado
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
+        
     user_id = update.effective_user.id
     
     # Verificar si el usuario ya es administrador
