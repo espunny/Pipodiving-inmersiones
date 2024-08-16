@@ -74,6 +74,19 @@ async def start(update: Update, context: CallbackContext):
     if chat_id != AUTHORIZED_GROUP_ID:
         await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
         return
+
+   # Cargar y volcar el contenido del archivo JSON
+    try:
+        with open('events_data.json', 'r') as file:
+            data = json.load(file)
+            # Volcar los datos como una cadena JSON bien formateada
+            data_dump = json.dumps(data, indent=4)
+            await update.message.reply_text(f"Volcado de datos:\n```{data_dump}```", parse_mode='Markdown')
+    except FileNotFoundError:
+        await update.message.reply_text("No se encontró el archivo de datos.")
+    except json.JSONDecodeError:
+        await update.message.reply_text("Error al decodificar el archivo JSON.")
+        
     await update.message.reply_text("¡Hola! Usa /inmersiones para ver los detalles de los eventos.")
 
 async def observaciones(update: Update, context: CallbackContext):
