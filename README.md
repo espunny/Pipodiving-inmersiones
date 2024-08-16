@@ -28,8 +28,6 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
 
 ### Comandos Generales
 
-¡¡ADVERTENCIA. ACTUALMENTE NO SE PUEDEN USAR ESPACIOS EN LOS COMANDOS!!
-
 1. **`/start`**
    - **Descripción**: Inicia el bot y muestra un mensaje de bienvenida con el `chat_id` del grupo autorizado.
    - **Uso**: Simplemente escribe `/start` en el chat.
@@ -57,7 +55,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
    - **Uso**: `/crear_inmersion <ID del evento> <Nombre del evento> <Plazas>`
    - **Ejemplo**:
      ```
-     /crear_inmersion 123 "09:20-Sábado-Advanced" 12
+     /crear_inmersion 123 Sábado 9:30 -Open Water 12
      ```
 
 3. **`/borrar_inmersion <ID del evento>`**
@@ -73,7 +71,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
    - **Uso**: `/observaciones <ID del evento> <ID del usuario> <Observaciones>`
    - **Ejemplo**:
      ```
-     /observaciones 123 456 "CursoOW-Necesita_equipo"
+     /observaciones 123 456 Curso OWD. Necesita equipo
      ```
 
 5. **`/eliminar_usuario <ID del evento> <ID del usuario>`**
@@ -97,6 +95,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
 - Asegúrate de que los comandos que requieran parámetros se utilicen con el formato adecuado para evitar errores.
 
 ## Futuras mejoras
+- Cambiar el nombre de una inmersión cuando ya se ha publicado.
 - No permitir que un buceador se apunte a una inmersión si queda muy poco tiempo (Se podrá configurar esa duración).
 - Envío de correos electrónicos de confirmación.
 - Gestión de Bonos de inmersiones.
