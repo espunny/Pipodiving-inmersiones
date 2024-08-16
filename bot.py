@@ -499,8 +499,8 @@ async def handle_button(update: Update, context: CallbackContext):
 
     # No actualizar el botón a "Desapuntarme"
     buttons = []
-    if event['spots_left'] > 0 and user_id not in event['registered_users']:
-        buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
+    # if event['spots_left'] > 0 and user_id not in event['registered_users']:
+    buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
 
     reply_markup = InlineKeyboardMarkup([buttons])
     await query.edit_message_text(text, reply_markup=reply_markup)
