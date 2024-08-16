@@ -4,8 +4,8 @@ Bot de Telegram para gestionar inmersiones de un club de buceo.
 Esta es una versión preliminar.
 
 Se agradece cualquier idea o aportación.
-Se puede probar el funcionamiento en el siguiente grupo privado (Se requiere verificación).
-https://t.me/+-1Yp622bPi5iMDc0
+Se puede probar el funcionamiento en el siguiente grupo privado.
+[https://t.me/+pAmFphtBgNo5MDU8](https://t.me/+pAmFphtBgNo5MDU8)
 
 --------
 Telegram bot to manage dives of a diving club.
