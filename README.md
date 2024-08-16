@@ -91,8 +91,12 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      ```
 
 ## Notas Adicionales
-
 - El bot verifica que el `chat_id` del grupo coincida con el autorizado para evitar usos no autorizados.
 - Asegúrate de que los comandos que requieran parámetros se utilicen con el formato adecuado para evitar errores.
+
+## Futuras mejoras
+- No permitir que un buceador se apunte a una inmersión si queda muy poco tiempo (Se podrá configurar esa duración).
+- Envío de correos electrónicos de confirmación.
+- Gestión de Bonos de inmersiones.
 
 Este bot está en versión Alpha 1.3, y se esperan futuras mejoras y correcciones.
