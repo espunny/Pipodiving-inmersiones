@@ -221,15 +221,16 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
 
-    # Verificar permisos de administrador, independientemente del contexto
+    # Verificar permisos de administrador
     if user_id not in ADMIN_IDS:
         await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
         return
 
     # Verificar si el chat es un grupo y si está autorizado
-    if update.effective_chat.type in ['group', 'supergroup'] and chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
-        return
+    if update.effective_chat.type in ['group', 'supergroup']:
+        if chat_id not in AUTHORIZED_GROUP_IDS:
+            await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+            return
 
     if not EVENTS:
         await update.message.reply_text('No hay inmersiones disponibles.')
@@ -249,9 +250,12 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
                     user = await context.bot.get_chat_member(chat_id, uid)
                     full_name = user.user.full_name
                 else:
-                    # En un chat privado, usa `context.bot.get_chat_member` con `chat_id` y `uid`
-                    user = await context.bot.get_chat_member(chat_id, uid)
-                    full_name = user.user.full_name
+                    # En un chat privado, no podemos obtener información de otros usuarios
+                    if uid == user_id:
+                        full_name = update.effective_user.full_name
+                    else:
+                        # Si es un chat privado y el uid no coincide con user_id, ignoramos
+                        continue
 
                 # Obtener observación si existe
                 observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
@@ -261,7 +265,8 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
                     user_details.append(f"{full_name} - {uid}")
 
             except telegram.error.BadRequest:
-                user_details.append(f"Usuario {uid} - Información no disponible")
+                if update.effective_chat.type in ['group', 'supergroup']:
+                    user_details.append(f"Usuario {uid} - Información no disponible")
 
         # Verificar si hay usuarios a mostrar y construir la lista de usuarios
         if user_details:
