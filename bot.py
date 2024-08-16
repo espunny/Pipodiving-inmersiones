@@ -1,4 +1,4 @@
-# Versión Alpha 1.2
+# Versión Alpha 1.3
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
@@ -469,7 +469,8 @@ def main():
     application.add_handler(CommandHandler('eliminar_usuario', eliminar_usuario))
     application.add_handler(CommandHandler('agregar_admin', agregar_admin))
     application.add_handler(CommandHandler('observaciones', observaciones))
-    application.add_handler(CommandHandler('inmersiones_detalles', inmersiones_detalles))  
+    application.add_handler(CommandHandler('inmersiones_detalles', inmersiones_detalles))
+    application.add_handler(CommandHandler('purgar_datos', purgar))
     application.add_handler(CallbackQueryHandler(handle_button))
 
     # Configurar el webhook en lugar de run_polling
