@@ -7,7 +7,7 @@ Se agradece cualquier idea o aportación.
 Se puede probar el funcionamiento en el siguiente grupo privado. Solamente tenéis que poner el símbolo "/" o pinchar en el icono de comandos y se mostrarán los comandos disponibles.
 [https://t.me/+pAmFphtBgNo5MDU8](https://t.me/+pAmFphtBgNo5MDU8)
 
-Si necesitáis ser administrador para probar las funcionalidades podéis usar el siguiente comando. </hacerme_admin> (Este comando no estará disponible en un entorno de producción.
+Si necesitáis ser administrador para probar el resto de funcionalidades, podéis usar el siguiente comando. </hacerme_admin> (Este comando no estará disponible en un entorno de producción.
 
 Si intentas añadir el bot a tu grupo, no funcionará. Tendrás que crear tu propio bot con el código fuente de esta página y asignar el ID de tu Grupo en las variables de tu SO.
 Si necesitas ayuda profesional para implantarlo en tu grupo de telegram, puedes contactar conmigo en privado por Telegram: @t850model102
