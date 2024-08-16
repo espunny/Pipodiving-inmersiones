@@ -53,6 +53,14 @@ def save_data(data, filename='events_data.json'):
     except Exception as e:
         print(f"Error al guardar los datos: {e}")
 
+def guardar_datos():
+    save_data({
+        'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
+        'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
+        'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
+    })
+
+
 
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
 AUTHORIZED_GROUP_ID = int(os.getenv('AUTHORIZED_GROUP_ID')) # GRUPO AUTORIZADO
@@ -66,6 +74,25 @@ OBSERVACIONES = {} # Observaciones que pueden añadir los administradores.
 data = load_data()  # Carga todos los datos al inicio
 EVENTS = data.get('events', {})  # Cargar inmersiones
 ADMIN_IDS = set(data.get('admin_ids', []))  # Cargar administradores
+
+
+async def purgar_datos(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+
+    # Verificar que el comando es ejecutado por un administrador
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("No tienes permiso para ejecutar este comando.")
+        return
+
+    # Vaciar las inmersiones y observaciones
+    EVENTS.clear()
+    OBSERVACIONES.clear()
+
+    # Guardar el estado vacío
+    guardar_datos()
+
+    await update.message.reply_text("Todas las inmersiones y observaciones han sido purgadas.")
 
 
 async def start(update: Update, context: CallbackContext):
@@ -124,11 +151,7 @@ async def observaciones(update: Update, context: CallbackContext):
         await update.message.reply_text(f"Observación añadida para el usuario {usuario_id} en el evento {evento_id}.")
         
         # Asegúrate de que OBSERVACIONES y EVENTS se guarden
-        save_data({
-            'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-            'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
-            'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
-        })
+        guardar_datos():
     except (IndexError, ValueError):
         await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
 
@@ -251,11 +274,7 @@ async def crear_inmersion(update: Update, context: CallbackContext):
         'blacklisted_users': set()
     }
     
-    save_data({
-        'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-        'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
-        'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
-    })
+    guardar_datos():
     
     await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
 
@@ -279,11 +298,7 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
         if event_id in EVENTS:
             del EVENTS[event_id]
             await update.message.reply_text(f"Inmersión con ID {event_id} ha sido borrada.")
-            save_data({
-                'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
-                'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
-            })
+            guardar_datos():
         else:
             await update.message.reply_text("Inmersión no encontrada.")
     except ValueError:
@@ -323,11 +338,7 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
                     chat_id = update.effective_chat.id
                     await context.bot.send_message(chat_id=chat_id, text=f"Usuario con ID {target_user_id} ha sido eliminado del evento {event_id}.")
                 
-                save_data({
-                    'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                    'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
-                    'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
-                })
+                guardar_datos():
                 try:
                     await context.bot.send_message(target_user_id, f"Has sido eliminado del evento ID {event_id}.")
                 except Exception as e:
@@ -374,11 +385,7 @@ async def handle_button(update: Update, context: CallbackContext):
             event['spots_left'] -= 1
             await query.answer("¡Te has apuntado con éxito!")
             # Enviar mensaje privado de confirmación
-            save_data({
-                'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
-                'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
-            })
+            guardar_datos():
             try:
                 await context.bot.send_message(user_id, f"Te has apuntado con éxito al evento ID {event_id}.")
             except Exception as e:
@@ -392,11 +399,7 @@ async def handle_button(update: Update, context: CallbackContext):
             event['registered_users'].remove(user_id)
             event['spots_left'] += 1
             await query.answer("¡Te has desapuntado con éxito!")
-            save_data({
-                'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
-                'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
-            })
+guardar_datos():
             try:
                 await context.bot.send_message(user_id, f"Te has desapuntado del evento ID {event_id}.")
             except Exception as e:
@@ -450,11 +453,7 @@ async def agregar_admin(update: Update, context: CallbackContext):
             new_admin_id = int(context.args[0])
             ADMIN_IDS.add(new_admin_id)
             await update.message.reply_text(f"Administrador con ID {new_admin_id} añadido.")
-            save_data({
-                'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
-                'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
-            })
+            guardar_datos():
         except ValueError:
             await update.message.reply_text("Por favor, introduce un número válido de ID.")
     else:
