@@ -15,38 +15,82 @@ This is a preliminary version.
 Contributions are welcome.
 You can test the operation in the following private group (Verification required).
 https://t.me/+-1Yp622bPi5iMDc0
---------
 
-COMANDOS:
-1.	/start
-	•	Descripción: Envía un mensaje de bienvenida y una breve explicación sobre el uso del bot.
-	•	Ejemplo de uso: /start
-	•	Respuesta esperada: “¡Hola! Usa /inmersiones para ver los detalles de los eventos.”
- 
-2.	/inmersiones
-	•	Descripción: Muestra una lista de eventos disponibles, incluyendo los detalles y la opción de apuntarse o desapuntarse.
-	•	Ejemplo de uso: /inmersiones
+# Bot de Gestión de Inmersiones
 
-3.	/crear_inmersion  
-	•	Descripción: Crea un nuevo evento con un nombre y un número específico de plazas.
-	•	Ejemplo de uso: /crear_inmersion Taller de JavaScript 5
-	•	Respuesta esperada: “Nuevo evento creado:\nNombre: Taller de JavaScript\nPlazas restantes: 5”
+Este bot está diseñado para gestionar inmersiones y usuarios registrados en ellas. Permite a los usuarios ver las inmersiones disponibles, registrarse en ellas, añadir observaciones, y más. Algunas funciones son exclusivas para administradores.
 
-4.	/borrar_inmersion 
-	•	Descripción: Borra un evento existente especificado por su ID.
-	•	Ejemplo de uso: /borrar_inmersion 1
-	•	Respuesta esperada: “Inmersión con ID 1 ha sido borrada.”
+## Comandos Disponibles
 
-5.	/eliminar_usuario <evento_id> <user_id>
-	•	Descripción: Elimina un usuario de un evento especificado por el ID del evento y el ID del usuario. Además, el usuario es añadido a una lista negra.
-	•	Ejemplo de uso: /eliminar_usuario 1 123456789
-	•	Respuesta esperada: “Usuario con ID 123456789 ha sido eliminado del evento 1.”
+### Comandos Generales
 
-6.	/agregar_admin 
-	•	Descripción: Añade un nuevo administrador al bot. Solo disponible para los administradores existentes.
-	•	Ejemplo de uso: /agregar_admin 987654321
-	•	Respuesta esperada: “Administrador con ID 987654321 añadido.”
+1. **`/start`**
+   - **Descripción**: Inicia el bot y muestra un mensaje de bienvenida con el `chat_id` del grupo autorizado.
+   - **Uso**: Simplemente escribe `/start` en el chat.
 
-8. 	/getchatid (Obtiene el ID del grupo para establecerlo en las variable de entorno. De este modo el bot solamente funcionará en ese grupo)
+2. **`/inmersiones`**
+   - **Descripción**: Muestra una lista de todas las inmersiones disponibles, incluyendo los usuarios registrados y el número de plazas restantes.
+   - **Uso**: `/inmersiones`
+   - **Ejemplo**:
+     ```
+     /inmersiones
+     ```
 
-LIMITACIONES: ¡Atención, este bot está en versión alpha y aún no tiene persistencia! por lo que cuando se reinicie, se perderán todos los datos de las inmersiones.
+3. **`/inmersiones_detalles`**
+   - **Descripción**: Muestra detalles adicionales de las inmersiones, incluyendo observaciones si existen.
+   - **Uso**: `/inmersiones_detalles`
+   - **Ejemplo**:
+     ```
+     /inmersiones_detalles
+     ```
+
+### Comandos para Administradores
+
+**Nota**: Estos comandos solo pueden ser ejecutados por administradores.
+
+1. **`/crear_inmersion <ID del evento> <Nombre del evento> <Plazas>`**
+   - **Descripción**: Crea una nueva inmersión con el ID y nombre especificados, y con un número determinado de plazas.
+   - **Uso**: `/crear_inmersion <ID del evento> <Nombre del evento> <Plazas>`
+   - **Ejemplo**:
+     ```
+     /crear_inmersion 123 "Inmersión en el arrecife" 10
+     ```
+
+2. **`/borrar_inmersion <ID del evento>`**
+   - **Descripción**: Elimina una inmersión específica.
+   - **Uso**: `/borrar_inmersion <ID del evento>`
+   - **Ejemplo**:
+     ```
+     /borrar_inmersion 123
+     ```
+
+3. **`/observaciones <ID del evento> <ID del usuario> <Observaciones>`**
+   - **Descripción**: Añade una observación para un usuario específico en una inmersión específica.
+   - **Uso**: `/observaciones <ID del evento> <ID del usuario> <Observaciones>`
+   - **Ejemplo**:
+     ```
+     /observaciones 123 456 "Necesita equipo especial"
+     ```
+
+4. **`/eliminar_usuario <ID del evento> <ID del usuario>`**
+   - **Descripción**: Elimina a un usuario específico de una inmersión.
+   - **Uso**: `/eliminar_usuario <ID del evento> <ID del usuario>`
+   - **Ejemplo**:
+     ```
+     /eliminar_usuario 123 456
+     ```
+
+5. **`/purgar_datos`**
+   - **Descripción**: Purga todas las inmersiones y observaciones del sistema.
+   - **Uso**: `/purgar_datos`
+   - **Ejemplo**:
+     ```
+     /purgar_datos
+     ```
+
+## Notas Adicionales
+
+- El bot verifica que el `chat_id` del grupo coincida con el autorizado para evitar usos no autorizados.
+- Asegúrate de que los comandos que requieran parámetros se utilicen con el formato adecuado para evitar errores.
+
+Este bot está en versión Alpha 1.3, y se esperan futuras mejoras y correcciones.
