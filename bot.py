@@ -247,22 +247,25 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
 
         user_details = []
 
-        # Revisión de la obtención de detalles de los usuarios
         for uid in event['registered_users']:
             try:
+                # Obtener información del usuario según el contexto
                 if update.effective_chat.type in ['group', 'supergroup']:
                     user = await context.bot.get_chat_member(chat_id, uid)
+                    full_name = user.user.full_name
                 else:
-                    # En un chat privado, usa update.effective_user
-                    user = update.effective_user
-
-                if user:
-                    # Obtener observación si existe
-                    observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
-                    if observacion:
-                        user_details.append(f"{user.full_name} - {uid} - {observacion}")
+                    # En un chat privado, asegurarse de que solo se maneja el usuario actual
+                    if uid == user_id:
+                        full_name = update.effective_user.full_name
                     else:
-                        user_details.append(f"{user.full_name} - {uid}")
+                        continue  # En un chat privado, ignoramos otros uids
+
+                # Obtener observación si existe
+                observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
+                if observacion:
+                    user_details.append(f"{full_name} - {uid} - {observacion}")
+                else:
+                    user_details.append(f"{full_name} - {uid}")
 
             except telegram.error.BadRequest:
                 user_details.append(f"Usuario {uid} - Información no disponible")
