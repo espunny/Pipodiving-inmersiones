@@ -145,7 +145,7 @@ async def inmersiones(update: Update, context: CallbackContext):
             await update.message.reply_text(text, reply_markup=reply_markup)
         else:
             await update.message.reply_text(text)
-    user_id = update.effective_user.id
+    
 
 async def inmersiones_detalles(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
@@ -174,8 +174,11 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
             user = await context.bot.get_chat_member(update.effective_chat.id, uid)
             if user:
                 # Obtener observación si existe
-                observacion = OBSERVACIONES.get(event_id, {}).get(uid, "Sin observaciones")
-                user_details.append(f"{user.user.full_name} - {uid} - {observacion}")
+                observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
+                if observacion:
+                    user_details.append(f"{user.user.full_name} - {uid} - {observacion}")
+                else:
+                    user_details.append(f"{user.user.full_name} - {uid}")
 
         if user_details:
             user_details_list = '\n'.join(user_details)
