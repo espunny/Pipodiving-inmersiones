@@ -239,11 +239,8 @@ async def inmersiones(update: Update, context: CallbackContext):
 
         # Configurar los botones de acción (Apuntarse/Desapuntarse)
         buttons = []
-        if user_id in event['registered_users']:
-            buttons.append(InlineKeyboardButton("Desapuntarme", callback_data=f'unregister_{event_id}'))
-        else:
-            if event['spots_left'] > 0:
-                buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
+        if event['spots_left'] > 0:
+            buttons.append(InlineKeyboardButton("🤿 Apuntarme", callback_data=f'register_{event_id}'))
 
         # Enviar el mensaje con los botones, si los hay
         if buttons:
