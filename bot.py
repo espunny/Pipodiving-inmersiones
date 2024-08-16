@@ -104,20 +104,26 @@ async def observaciones(update: Update, context: CallbackContext):
         evento_id = context.args[0]
         usuario_id = context.args[1]
         observacion = ' '.join(context.args[2:])
+
+        # Verificar que el evento existe en EVENTS
+        if evento_id not in EVENTS:
+            await update.message.reply_text(f"No se encontró el evento con ID: {evento_id}")
+            return
+        
+        # Asegurarse de que el campo 'observaciones' exista en el evento
+        if 'observaciones' not in EVENTS[evento_id]:
+            EVENTS[evento_id]['observaciones'] = {}
+        
+        EVENTS[evento_id]['observaciones'][usuario_id] = observacion
         
         if evento_id not in OBSERVACIONES:
             OBSERVACIONES[evento_id] = {}
         
         OBSERVACIONES[evento_id][usuario_id] = observacion
 
-        # Actualizar directamente EVENTS si necesitas que las observaciones sean parte de él
-        if 'observaciones' not in EVENTS[evento_id]:
-            EVENTS[evento_id]['observaciones'] = {}
-        
-        EVENTS[evento_id]['observaciones'][usuario_id] = observacion
-        
         await update.message.reply_text(f"Observación añadida para el usuario {usuario_id} en el evento {evento_id}.")
         
+        # Asegúrate de que OBSERVACIONES y EVENTS se guarden
         save_data({
             'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
             'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
@@ -125,6 +131,7 @@ async def observaciones(update: Update, context: CallbackContext):
         })
     except (IndexError, ValueError):
         await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
+
 
 
 async def inmersiones(update: Update, context: CallbackContext):
