@@ -151,7 +151,7 @@ async def observaciones(update: Update, context: CallbackContext):
         await update.message.reply_text(f"Observación añadida para el usuario {usuario_id} en el evento {evento_id}.")
         
         # Asegúrate de que OBSERVACIONES y EVENTS se guarden
-        guardar_datos():
+        guardar_datos()
     except (IndexError, ValueError):
         await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
 
@@ -274,7 +274,7 @@ async def crear_inmersion(update: Update, context: CallbackContext):
         'blacklisted_users': set()
     }
     
-    guardar_datos():
+    guardar_datos()
     
     await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
 
@@ -298,7 +298,7 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
         if event_id in EVENTS:
             del EVENTS[event_id]
             await update.message.reply_text(f"Inmersión con ID {event_id} ha sido borrada.")
-            guardar_datos():
+            guardar_datos()
         else:
             await update.message.reply_text("Inmersión no encontrada.")
     except ValueError:
@@ -338,7 +338,7 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
                     chat_id = update.effective_chat.id
                     await context.bot.send_message(chat_id=chat_id, text=f"Usuario con ID {target_user_id} ha sido eliminado del evento {event_id}.")
                 
-                guardar_datos():
+                guardar_datos()
                 try:
                     await context.bot.send_message(target_user_id, f"Has sido eliminado del evento ID {event_id}.")
                 except Exception as e:
@@ -385,7 +385,7 @@ async def handle_button(update: Update, context: CallbackContext):
             event['spots_left'] -= 1
             await query.answer("¡Te has apuntado con éxito!")
             # Enviar mensaje privado de confirmación
-            guardar_datos():
+            guardar_datos()
             try:
                 await context.bot.send_message(user_id, f"Te has apuntado con éxito al evento ID {event_id}.")
             except Exception as e:
@@ -399,7 +399,7 @@ async def handle_button(update: Update, context: CallbackContext):
             event['registered_users'].remove(user_id)
             event['spots_left'] += 1
             await query.answer("¡Te has desapuntado con éxito!")
-guardar_datos():
+            guardar_datos()
             try:
                 await context.bot.send_message(user_id, f"Te has desapuntado del evento ID {event_id}.")
             except Exception as e:
@@ -453,7 +453,7 @@ async def agregar_admin(update: Update, context: CallbackContext):
             new_admin_id = int(context.args[0])
             ADMIN_IDS.add(new_admin_id)
             await update.message.reply_text(f"Administrador con ID {new_admin_id} añadido.")
-            guardar_datos():
+            guardar_datos()
         except ValueError:
             await update.message.reply_text("Por favor, introduce un número válido de ID.")
     else:
