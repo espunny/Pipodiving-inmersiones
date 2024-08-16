@@ -15,8 +15,8 @@ Telegram bot to manage dives of a diving club.
 This is a preliminary version.
 
 Contributions are welcome.
-You can test the operation in the following private group (Verification required).
-https://t.me/+-1Yp622bPi5iMDc0
+You can test the operation in the following private group.
+[https://t.me/+pAmFphtBgNo5MDU8](https://t.me/+pAmFphtBgNo5MDU8)
 
 # Bot de Gestión de Inmersiones
 
