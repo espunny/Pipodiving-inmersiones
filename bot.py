@@ -334,11 +334,11 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
                 
                 # Notificar al usuario eliminado
                 if update.message:
-                    await update.message.reply_text(f"Usuario con ID {target_user_id} ha sido eliminado del evento {event_id}.")
+                    await update.message.reply_text(f"Usuario con ID {target_user_id} ha sido eliminado de la inmersión {event_id}.")
                 else:
                     # Usar otra forma de enviar el mensaje si update.message es None
                     chat_id = update.effective_chat.id
-                    await context.bot.send_message(chat_id=chat_id, text=f"Usuario con ID {target_user_id} ha sido eliminado del evento {event_id}.")
+                    await context.bot.send_message(chat_id=chat_id, text=f"Usuario con ID {target_user_id} ha sido eliminado de la inmersión {event_id}.")
                 
                 guardar_datos()
                 try:
@@ -385,11 +385,11 @@ async def handle_button(update: Update, context: CallbackContext):
         elif event['spots_left'] > 0:
             event['registered_users'].add(user_id)
             event['spots_left'] -= 1
-            await query.answer("¡Te has apuntado con éxito!")
+            await query.answer("¡Te has apuntado con éxito. Si necesitas alquilar equipo, contacta con el Administrador!")
             # Enviar mensaje privado de confirmación
             guardar_datos()
             try:
-                await context.bot.send_message(user_id, f"Te has apuntado con éxito al evento ID {event_id}.")
+                await context.bot.send_message(user_id, f"Te has apuntado con éxito al evento ID {event_id}. Si necesitas alquilar equipo o hacer alguna observación envía un mensaje privado al administrador.")
             except Exception as e:
                 print(f"No se pudo enviar el mensaje al usuario: {e}")
         else:
@@ -461,6 +461,23 @@ async def agregar_admin(update: Update, context: CallbackContext):
     else:
         await update.message.reply_text("No tienes permiso para usar este comando.")
 
+async def hacerme_admin(update: Update, context: CallbackContext):
+    user_id = update.effective_user.id
+    
+    # Verificar si el usuario ya es administrador
+    if user_id in ADMIN_IDS:
+        await update.message.reply_text("Ya eres administrador.")
+        return
+    
+    # Agregar al usuario a la lista de administradores
+    ADMIN_IDS.add(user_id)
+    
+    # Guardar los cambios
+    guardar_datos()
+
+    await update.message.reply_text("¡Ahora eres administrador!")
+
+
 def main():
     application = Application.builder().token(TOKEN).build()
 
@@ -473,6 +490,7 @@ def main():
     application.add_handler(CommandHandler('observaciones', observaciones))
     application.add_handler(CommandHandler('inmersiones_detalles', inmersiones_detalles))
     application.add_handler(CommandHandler('purgar_datos', purgar_datos))
+    application.add_handler(CommandHandler('hacerme_admin', hacerme_admin))
     application.add_handler(CallbackQueryHandler(handle_button))
 
     # Configurar el webhook en lugar de run_polling
