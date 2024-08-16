@@ -383,7 +383,11 @@ async def handle_button(update: Update, context: CallbackContext):
         await query.answer("Inmersión no encontrada")
         return
 
+    # Obtener el id
     event = EVENTS[event_id]
+    
+    # Obtener el nombre del evento desde EVENTS utilizando el event_id
+    event_name = EVENTS[event_id]['name']
 
     if user_id in event['blacklisted_users']:
         await query.answer("No puedes apuntarte a esta inmersión.")
@@ -395,11 +399,11 @@ async def handle_button(update: Update, context: CallbackContext):
         elif event['spots_left'] > 0:
             event['registered_users'].add(user_id)
             event['spots_left'] -= 1
-            await query.answer("¡Te has apuntado con éxito. Si necesitas alquilar equipo, contacta con el Administrador!")
+            await query.answer("¡Te has apuntado con éxito a la inmersión '{event_name}'. Si necesitas alquilar equipo, envía un mensaje privado al administrador!")
             # Enviar mensaje privado de confirmación
             guardar_datos()
             try:
-                await context.bot.send_message(user_id, f"Te has apuntado con éxito al evento ID {event_id}. Si necesitas alquilar equipo o hacer alguna observación envía un mensaje privado al administrador.")
+                await context.bot.send_message(user_id, f"Te has apuntado con éxito a la inmersión '{event_name}'. Si necesitas alquilar equipo o hacer alguna observación envía un mensaje privado al administrador.")
             except Exception as e:
                 print(f"No se pudo enviar el mensaje al usuario: {e}")
         else:
