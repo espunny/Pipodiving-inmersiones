@@ -173,12 +173,12 @@ async def observaciones(update: Update, context: CallbackContext):
 
 async def inmersiones(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
+    user_id = update.effective_user.id
+
+    # Verificar que el comando es ejecutado en un grupo autorizado (solo para grupos)
+    if update.effective_chat.type in ['group', 'supergroup'] and chat_id not in AUTHORIZED_GROUP_IDS:
         await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
         return
-    
-    user_id = update.effective_user.id
 
     if not EVENTS:
         await update.message.reply_text('No hay inmersiones disponibles.')
@@ -187,22 +187,24 @@ async def inmersiones(update: Update, context: CallbackContext):
     for event_id, event in EVENTS.items():
         text = (f"Evento ID: {event_id}\n"
                 f"{event['name']}\n\n"
-                f"Plazas restantes: {event['spots_left']}\n"
-                f"Usuarios apuntados: {len(event['registered_users'])}")
+                f"Plazas restantes: {event['spots_left']}\n")
 
-        # Obtener información de los usuarios apuntados
-        user_names = []
-        for uid in event['registered_users']:
-            user = await context.bot.get_chat_member(update.effective_chat.id, uid)
-            if user:
-                user_names.append(f"- {user.user.full_name}")
-                # Omito esta información en los usuarios que no son admins
-                # user_names.append(f"- {user.user.full_name} (ID: {uid})")
+        # En grupos, mostrar la lista de usuarios apuntados
+        if update.effective_chat.type in ['group', 'supergroup']:
+            user_names = []
+            for uid in event['registered_users']:
+                try:
+                    user = await context.bot.get_chat_member(chat_id, uid)
+                    if user:
+                        user_names.append(f"- {user.user.full_name}")
+                except telegram.error.BadRequest:
+                    user_names.append(f"- Usuario {uid} - Información no disponible")
 
-        if user_names:
-            user_names_list = '\n'.join(user_names)
-            text += f"\n\nUsuarios en la inmersión:\n{user_names_list}"
+            if user_names:
+                user_names_list = '\n'.join(user_names)
+                text += f"\n\nUsuarios en la inmersión:\n{user_names_list}"
 
+        # Configurar los botones de acción (Apuntarse/Desapuntarse)
         buttons = []
         if user_id in event['registered_users']:
             buttons.append(InlineKeyboardButton("Desapuntarme", callback_data=f'unregister_{event_id}'))
@@ -210,12 +212,12 @@ async def inmersiones(update: Update, context: CallbackContext):
             if event['spots_left'] > 0:
                 buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
 
+        # Enviar el mensaje con los botones, si los hay
         if buttons:
             reply_markup = InlineKeyboardMarkup([buttons])
             await update.message.reply_text(text, reply_markup=reply_markup)
         else:
-            await update.message.reply_text(text)
-    
+            await update.message.reply_text(text)    
 
 async def inmersiones_detalles(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
