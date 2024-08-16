@@ -135,6 +135,8 @@ async def observaciones(update: Update, context: CallbackContext):
     try:
         evento_id = int(context.args[0])  # Convertir event_id a entero
         usuario_id = int(context.args[1])  # Convertir usuario_id a entero
+        
+        # Concatenar el resto de los argumentos como la observación
         observacion = ' '.join(context.args[2:])
 
         # Verificar que el evento existe en EVENTS
@@ -159,9 +161,6 @@ async def observaciones(update: Update, context: CallbackContext):
         guardar_datos()
     except (IndexError, ValueError):
         await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
-
-
-
 
 async def inmersiones(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
@@ -246,8 +245,6 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
 
         await update.message.reply_text(text)
 
-
-
 async def crear_inmersion(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     if chat_id != AUTHORIZED_GROUP_ID:
@@ -286,8 +283,13 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     }
     
     guardar_datos()
-    await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
-    
+
+    # Verificar si update.message es None
+    if update.message:
+        await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
+    else:
+        await context.bot.send_message(chat_id=chat_id, text=f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
+        
 async def borrar_inmersion(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     if chat_id != AUTHORIZED_GROUP_ID:
