@@ -253,7 +253,8 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     
     save_data({
         'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-        'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+        'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
+        'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
     })
     
     await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
@@ -280,7 +281,8 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
             await update.message.reply_text(f"Inmersión con ID {event_id} ha sido borrada.")
             save_data({
                 'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+                'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
+                'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
             })
         else:
             await update.message.reply_text("Inmersión no encontrada.")
@@ -316,7 +318,8 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
                 # Notificar al usuario eliminado
                 save_data({
                     'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                    'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+                    'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
+                    'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
                 })
                 try:
                     await context.bot.send_message(target_user_id, f"Has sido eliminado del evento ID {event_id}.")
@@ -366,7 +369,8 @@ async def handle_button(update: Update, context: CallbackContext):
             # Enviar mensaje privado de confirmación
             save_data({
                 'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+                'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
+                'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
             })
             try:
                 await context.bot.send_message(user_id, f"Te has apuntado con éxito al evento ID {event_id}.")
@@ -383,7 +387,8 @@ async def handle_button(update: Update, context: CallbackContext):
             await query.answer("¡Te has desapuntado con éxito!")
             save_data({
                 'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+                'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
+                'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
             })
             try:
                 await context.bot.send_message(user_id, f"Te has desapuntado del evento ID {event_id}.")
@@ -440,7 +445,8 @@ async def agregar_admin(update: Update, context: CallbackContext):
             await update.message.reply_text(f"Administrador con ID {new_admin_id} añadido.")
             save_data({
                 'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-                'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+                'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
+                'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
             })
         except ValueError:
             await update.message.reply_text("Por favor, introduce un número válido de ID.")
