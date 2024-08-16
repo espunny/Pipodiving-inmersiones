@@ -406,9 +406,9 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
 async def handle_button(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
-        return
+    # if chat_id not in AUTHORIZED_GROUP_IDS:
+        # await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        # return
     
     query = update.callback_query
     user_id = query.from_user.id
