@@ -176,8 +176,8 @@ async def inmersiones(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
 
     # Verificar que el comando es ejecutado en un grupo autorizado (solo para grupos)
-    if update.effective_chat.type in ['group', 'supergroup'] and chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para interactuar con este chat.")
         return
 
     if not EVENTS:
@@ -226,7 +226,7 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
     if update.effective_chat.type in ['group', 'supergroup']:
         # Verificar que el comando es ejecutado en un grupo autorizado
         if chat_id not in AUTHORIZED_GROUP_IDS:
-            await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+            await update.message.reply_text("Este bot NO tiene permiso para interactuar con este chat.")
             return
 
         # Verificar que el comando es ejecutado por un administrador
@@ -284,7 +284,7 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
     if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        await update.message.reply_text("Permiso denegado")
         return
         
     user_id = update.effective_user.id
@@ -332,7 +332,7 @@ async def borrar_inmersion(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
     if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        await update.message.reply_text("Permiso denegado")
         return
         
     user_id = update.effective_user.id
@@ -359,7 +359,7 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
     if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        await update.message.reply_text("Permiso denegado")
         return
 
     user_id = update.effective_user.id
@@ -406,9 +406,9 @@ async def eliminar_usuario(update: Update, context: CallbackContext):
 async def handle_button(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
-    # if chat_id not in AUTHORIZED_GROUP_IDS:
-        # await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
-        # return
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Permiso denegado")
+        return
     
     query = update.callback_query
     user_id = query.from_user.id
@@ -494,7 +494,7 @@ async def agregar_admin(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
     if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        await update.message.reply_text("Permiso denegado")
         return
     
     user_id = update.effective_user.id
@@ -522,7 +522,7 @@ async def hacerme_admin(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
     if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        await update.message.reply_text("Permiso denegado")
         return
         
     user_id = update.effective_user.id
