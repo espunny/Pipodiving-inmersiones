@@ -263,9 +263,12 @@ async def crear_inmersion(update: Update, context: CallbackContext):
         await update.message.reply_text("Uso: /crear_inmersion <nombre> <plazas>")
         return
 
-    event_name = context.args[0]
+    # Capturar el nombre de la inmersión (todos los argumentos menos el último)
+    event_name = ' '.join(context.args[:-1])
+
+    # Capturar el número de plazas (último argumento)
     try:
-        max_spots = int(context.args[1])
+        max_spots = int(context.args[-1])
         if max_spots <= 0 or max_spots > 20:
             await update.message.reply_text("El número de plazas debe ser entre 1 y 19.")
             return
@@ -273,6 +276,7 @@ async def crear_inmersion(update: Update, context: CallbackContext):
         await update.message.reply_text("Por favor, introduce un número válido de plazas.")
         return
 
+    # Crear un ID único para la inmersión
     event_id = len(EVENTS) + 1
     EVENTS[event_id] = {
         'name': event_name,
@@ -282,9 +286,8 @@ async def crear_inmersion(update: Update, context: CallbackContext):
     }
     
     guardar_datos()
-    
     await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
-
+    
 async def borrar_inmersion(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     if chat_id != AUTHORIZED_GROUP_ID:
