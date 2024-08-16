@@ -221,19 +221,15 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
 
-    # Verificación de permisos y autorización
-    if update.effective_chat.type in ['group', 'supergroup']:
-        if chat_id not in AUTHORIZED_GROUP_IDS:
-            await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
-            return
+    # Verificar permisos de administrador, independientemente del contexto
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
+        return
 
-        if user_id not in ADMIN_IDS:
-            await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
-            return
-    else:
-        if user_id not in ADMIN_IDS:
-            await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
-            return
+    # Verificar si el chat es un grupo y si está autorizado
+    if update.effective_chat.type in ['group', 'supergroup'] and chat_id not in AUTHORIZED_GROUP_IDS:
+        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+        return
 
     if not EVENTS:
         await update.message.reply_text('No hay inmersiones disponibles.')
@@ -248,17 +244,16 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
         user_details = []
 
         for uid in event['registered_users']:
+            # En un chat privado, solo muestra el usuario actual
+            if update.effective_chat.type == 'private' and uid != user_id:
+                continue
+
             try:
-                # Obtener información del usuario según el contexto
                 if update.effective_chat.type in ['group', 'supergroup']:
                     user = await context.bot.get_chat_member(chat_id, uid)
                     full_name = user.user.full_name
                 else:
-                    # En un chat privado, asegurarse de que solo se maneja el usuario actual
-                    if uid == user_id:
-                        full_name = update.effective_user.full_name
-                    else:
-                        continue  # En un chat privado, ignoramos otros uids
+                    full_name = update.effective_user.full_name
 
                 # Obtener observación si existe
                 observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
