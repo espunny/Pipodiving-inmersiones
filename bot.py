@@ -219,16 +219,23 @@ async def inmersiones(update: Update, context: CallbackContext):
 
 async def inmersiones_detalles(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
-        return
-
     user_id = update.effective_user.id
-    # Verificar que el comando es ejecutado por un administrador
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
-        return
+
+    if update.effective_chat.type in ['group', 'supergroup']:
+        # Verificar que el comando es ejecutado en un grupo autorizado
+        if chat_id not in AUTHORIZED_GROUP_IDS:
+            await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+            return
+
+        # Verificar que el comando es ejecutado por un administrador
+        if user_id not in ADMIN_IDS:
+            await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
+            return
+    else:
+        # En un chat privado, solo verificar que el usuario es un administrador
+        if user_id not in ADMIN_IDS:
+            await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
+            return
 
     if not EVENTS:
         await update.message.reply_text('No hay inmersiones disponibles.')
@@ -240,17 +247,29 @@ async def inmersiones_detalles(update: Update, context: CallbackContext):
                 f"Plazas restantes: {event['spots_left']}\n"
                 f"Usuarios apuntados: {len(event['registered_users'])}")
 
-        # Obtener información de los usuarios apuntados
         user_details = []
-        for uid in event['registered_users']:
-            user = await context.bot.get_chat_member(update.effective_chat.id, uid)
-            if user:
-                # Obtener observación si existe
-                observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
-                if observacion:
-                    user_details.append(f"{user.user.full_name} - {uid} - {observacion}")
-                else:
-                    user_details.append(f"{user.user.full_name} - {uid}")
+
+        if update.effective_chat.type in ['group', 'supergroup']:
+            # Obtener información de los usuarios apuntados en un grupo
+            for uid in event['registered_users']:
+                try:
+                    user = await context.bot.get_chat_member(chat_id, uid)
+                    if user:
+                        # Obtener observación si existe
+                        observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
+                        if observacion:
+                            user_details.append(f"{user.user.full_name} - {uid} - {observacion}")
+                        else:
+                            user_details.append(f"{user.user.full_name} - {uid}")
+                except telegram.error.BadRequest:
+                    user_details.append(f"Usuario {uid} - Información no disponible")
+        else:
+            # En un chat privado, mostrar solo la información del usuario que está interactuando
+            observacion = OBSERVACIONES.get(event_id, {}).get(user_id, "")
+            if observacion:
+                user_details.append(f"{update.effective_user.full_name} - {user_id} - {observacion}")
+            else:
+                user_details.append(f"{update.effective_user.full_name} - {user_id}")
 
         if user_details:
             user_details_list = '\n'.join(user_details)
