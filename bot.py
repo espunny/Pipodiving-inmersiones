@@ -11,16 +11,30 @@ def load_data(filename='events_data.json'):
     if os.path.exists(filename):
         with open(filename, 'r') as file:
             data = json.load(file)
-            # Convertir listas de vuelta a sets
+            
+            # Convertir listas de vuelta a sets para los usuarios registrados y en lista negra
             for event in data.get('events', {}).values():
                 event['registered_users'] = set(event['registered_users'])
                 event['blacklisted_users'] = set(event['blacklisted_users'])
-            return data
-    return {}
+            
+            # Cargar observaciones si existen
+            observaciones = data.get('observaciones', {})
+            
+            return {
+                'events': data.get('events', {}),
+                'admin_ids': set(data.get('admin_ids', [])),
+                'observaciones': observaciones
+            }
+    return {
+        'events': {},
+        'admin_ids': set(),
+        'observaciones': {}
+    }
+
 
 def save_data(data, filename='events_data.json'):
     try:
-        # Convertir todos los sets a listas antes de guardar
+        # Convertir sets a listas antes de guardar
         data_copy = {
             'events': {
                 event_id: {
@@ -30,7 +44,8 @@ def save_data(data, filename='events_data.json'):
                 }
                 for event_id, event in data['events'].items()
             },
-            'admin_ids': list(data['admin_ids'])  # Si ADMIN_IDS es un set
+            'admin_ids': list(data['admin_ids']),
+            'observaciones': data.get('observaciones', {})
         }
         
         with open(filename, 'w') as file:
@@ -38,9 +53,11 @@ def save_data(data, filename='events_data.json'):
     except Exception as e:
         print(f"Error al guardar los datos: {e}")
 
+
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
 AUTHORIZED_GROUP_ID = int(os.getenv('AUTHORIZED_GROUP_ID')) # GRUPO AUTORIZADO
 WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
+OBSERVACIONES = {} # Observaciones que pueden añadir los administradores.
 
 # Estado global de eventos
 # EVENTS = {}
@@ -59,6 +76,29 @@ async def start(update: Update, context: CallbackContext):
         return
     await update.message.reply_text("¡Hola! Usa /inmersiones para ver los detalles de los eventos.")
     await update.message.reply_text('¡Hola! Usa /inmersiones para ver los detalles de los eventos.')
+
+async def observaciones(update: Update, context: CallbackContext):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("No tienes permiso para usar este comando.")
+        return
+    
+    try:
+        evento_id = context.args[0]
+        usuario_id = context.args[1]
+        observacion = ' '.join(context.args[2:])
+        
+        if evento_id not in OBSERVACIONES:
+            OBSERVACIONES[evento_id] = {}
+        
+        OBSERVACIONES[evento_id][usuario_id] = observacion
+        await update.message.reply_text(f"Observación añadida para el usuario {usuario_id} en el evento {evento_id}.")
+        save_data({
+            'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
+            'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+        })
+    except (IndexError, ValueError):
+        await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
 
 
 async def inmersiones(update: Update, context: CallbackContext):
@@ -102,6 +142,34 @@ async def inmersiones(update: Update, context: CallbackContext):
         else:
             await update.message.reply_text(text)
     user_id = update.effective_user.id
+
+async def inmersiones_detalles(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    if chat_id != AUTHORIZED_GROUP_ID:
+        await update.message.reply_text("Este bot solo está autorizado para funcionar en un grupo específico.")
+        return
+    
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("No tienes permiso para ejecutar este comando.")
+        return
+    
+    respuesta = "Detalles de la inmersión:\n"
+    
+    for evento_id, evento in EVENTS.items():
+        respuesta += f"\nEvento {evento_id}:\n"
+        for usuario_id in evento['registered_users']:
+            # Obtener el objeto User desde el contexto o la base de datos
+            user = await context.bot.get_chat_member(update.message.chat_id, usuario_id)
+            nombre_usuario = user.user.username or user.user.full_name
+            observacion = OBSERVACIONES.get(evento_id, {}).get(usuario_id, "")
+            if observacion:
+                respuesta += f"- {nombre_usuario} - {usuario_id} * {observacion}\n"
+            else:
+                respuesta += f"- {nombre_usuario} - {usuario_id}\n"
+    
+    await update.message.reply_text(respuesta or "No hay inmersiones disponibles.")
+
 
 
 async def crear_inmersion(update: Update, context: CallbackContext):
