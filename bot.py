@@ -99,7 +99,8 @@ async def observaciones(update: Update, context: CallbackContext):
         await update.message.reply_text(f"Observación añadida para el usuario {usuario_id} en el evento {evento_id}.")
         save_data({
             'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-            'admin_ids': list(ADMIN_IDS)  # Guarda la lista de administradores
+            'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
+            'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
         })
     except (IndexError, ValueError):
         await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
