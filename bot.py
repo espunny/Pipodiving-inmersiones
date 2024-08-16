@@ -380,8 +380,8 @@ def main():
     application.add_handler(CommandHandler('borrar_inmersion', borrar_inmersion))
     application.add_handler(CommandHandler('eliminar_usuario', eliminar_usuario))
     application.add_handler(CommandHandler('agregar_admin', agregar_admin))
-    application.add_handler(CommandHandler('agregar_admin', observaciones))
-    application.add_handler(CommandHandler('agregar_admin', inmersiones_detalles))  
+    application.add_handler(CommandHandler('observaciones', observaciones))
+    application.add_handler(CommandHandler('inmersiones_detalles', inmersiones_detalles))  
     application.add_handler(CallbackQueryHandler(handle_button))
 
     # Configurar el webhook en lugar de run_polling
