@@ -65,18 +65,18 @@ def guardar_datos():
         'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
     })
 
-def permisos_grupo():
+def permisos_grupo(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_ID:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
+    if chat_id not in AUTHORIZED_GROUP_IDS:
+        context.bot.send_message(chat_id=chat_id, text="Este bot NO tiene permiso para funcionar en este grupo.")
         return
 
-def permisos_usuario():
+def permisos_usuario(update: Update, context: CallbackContext):
     user_id = update.effective_user.id
     # Verificar que el comando es ejecutado por un administrador
     if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes permiso para ejecutar este comando.")
+        context.bot.send_message(chat_id=update.effective_chat.id, text="No tienes permiso para ejecutar este comando.")
         return
 
 TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
