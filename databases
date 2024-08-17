@@ -1,0 +1,30 @@
+1. Tabla inmersiones
+Esta tabla almacenará los detalles de cada inmersión disponible.
+
+CREATE TABLE inmersiones (
+    inmersion_id INT PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    plazas INT NOT NULL
+);
+
+2. Tabla usuarios
+Esta tabla registrará los usuarios que se han apuntado a cada inmersión.
+
+CREATE TABLE usuarios (
+    inmersion_id INT,
+    user_id INT,
+    PRIMARY KEY (inmersion_id, user_id),
+    FOREIGN KEY (inmersion_id) REFERENCES inmersiones(inmersion_id) ON DELETE CASCADE
+);
+
+3. Tabla observaciones
+Esta tabla almacenará las observaciones hechas por los administradores sobre los usuarios en las inmersiones.
+
+CREATE TABLE observaciones (
+    inmersion_id INT,
+    user_id INT,
+    observacion TEXT,
+    PRIMARY KEY (inmersion_id, user_id),
+    FOREIGN KEY (inmersion_id) REFERENCES inmersiones(inmersion_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES usuarios(user_id) ON DELETE CASCADE
+);
