@@ -3,8 +3,12 @@
 # La base de datos estará en un servidor MariaDb
 import os
 import aiomysql
+from dotenv import load_dotenv
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CommandHandler, CallbackQueryHandler, Filters, MessageHandler, Updater, ContextTypes
+
+# Cargar variables de entorno desde el archivo .env
+load_dotenv()
 
 # Variables del sistema
 TOKEN = os.getenv('TOKEN')
