@@ -13,6 +13,7 @@ Esta tabla registrará los usuarios que se han apuntado a cada inmersión.
 CREATE TABLE usuarios (
     inmersion_id INT,
     user_id INT,
+    username VARCHAR(255) NOT NULL,
     PRIMARY KEY (inmersion_id, user_id),
     FOREIGN KEY (inmersion_id) REFERENCES inmersiones(inmersion_id) ON DELETE CASCADE
 );
