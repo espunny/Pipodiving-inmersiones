@@ -1,4 +1,5 @@
 
+# Versión con bases de datos
 import os
 import aiomysql
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
