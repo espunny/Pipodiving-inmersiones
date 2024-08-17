@@ -2,7 +2,7 @@
 Esta tabla almacenará los detalles de cada inmersión disponible.
 
 CREATE TABLE inmersiones (
-    inmersion_id INT PRIMARY KEY,
+    inmersion_id INT PRIMARY KEY AUTO_INCREMENT,
     nombre VARCHAR(255) NOT NULL,
     plazas INT NOT NULL
 );
@@ -11,21 +11,20 @@ CREATE TABLE inmersiones (
 Esta tabla registrará los usuarios que se han apuntado a cada inmersión.
 
 CREATE TABLE usuarios (
-    inmersion_id INT,
-    user_id INT,
-    username VARCHAR(255) NOT NULL,
-    PRIMARY KEY (inmersion_id, user_id),
-    FOREIGN KEY (inmersion_id) REFERENCES inmersiones(inmersion_id) ON DELETE CASCADE
+    user_id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL
 );
 
 3. Tabla observaciones
 Esta tabla almacenará las observaciones hechas por los administradores sobre los usuarios en las inmersiones.
 
 CREATE TABLE observaciones (
+    observacion_id INT PRIMARY KEY AUTO_INCREMENT,
     inmersion_id INT,
     user_id INT,
     observacion TEXT,
-    PRIMARY KEY (inmersion_id, user_id),
-    FOREIGN KEY (inmersion_id) REFERENCES inmersiones(inmersion_id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES usuarios(user_id) ON DELETE CASCADE
+    FOREIGN KEY (inmersion_id) REFERENCES inmersiones(inmersion_id)
+        ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES usuarios(user_id)
+        ON DELETE CASCADE
 );
