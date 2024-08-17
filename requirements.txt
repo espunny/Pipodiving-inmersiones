@@ -1,2 +1,2 @@
+aiomysql==0.0.21
 python-telegram-bot==20.3
-pymysql==1.0.3

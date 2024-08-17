@@ -1,5 +1,6 @@
 
 # Versión con bases de datos
+# La base de datos estará en un servidor MariaDb
 import os
 import aiomysql
 from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
