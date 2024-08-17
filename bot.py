@@ -13,6 +13,14 @@ MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
 AUTHORIZED_GROUP_ID = os.getenv('AUTHORIZED_GROUP_ID')
 AUTHORIZED_CHAT_ID = os.getenv('AUTHORIZED_CHAT_ID')
 
+# Saber si un usuario es administrador
+def is_admin(user_id, chat_id, bot):
+    chat_administrators = bot.get_chat_administrators(chat_id)
+    for admin in chat_administrators:
+        if admin.user.id == user_id:
+            return True
+    return False
+
 # Conectar a la base de datos
 def connect_db():
     return pymysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
@@ -24,12 +32,43 @@ def authorized(chat_id):
 # Función de inicio
 def start(update: Update, context):
     chat_id = update.effective_chat.id
-    if authorized(chat_id):
-        update.message.reply_text(f'Bienvenido! Tu chat_id es {chat_id}.')
-    else:
-        update.message.reply_text('No tienes autorización para usar este bot.')
+    update.message.reply_text(f'Bienvenido! Tu chat_id es {chat_id}.')
 
-# Comando /inmersiones y /ver
+# Comando /ver
+def ver(update: Update, context):
+    chat_id = update.effective_chat.id
+    if not authorized(chat_id):
+        update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+
+    user_id = update.effective_user.id
+    
+    connection = connect_db()
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT * FROM inmersiones")
+        inmersiones = cursor.fetchall()
+    
+    if not inmersiones:
+        context.bot.send_message(chat_id=user_id, text='No hay inmersiones disponibles.')
+    else:
+        for inmersion in inmersiones:
+            inmersion_id, nombre, plazas = inmersion
+            cursor.execute("SELECT user_id, username, observacion FROM usuarios LEFT JOIN observaciones ON usuarios.user_id = observaciones.user_id WHERE inmersion_id=%s", (inmersion_id,))
+            usuarios = cursor.fetchall()
+            
+            texto = f'Inmersión: {nombre}\\nPlazas restantes: {plazas - len(usuarios)}'
+            for usuario in usuarios:
+                user_id, username, observacion = usuario
+                texto += f'\\n- {username} (User ID: {user_id}): {observacion}'
+            
+            keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            context.bot.send_message(chat_id=user_id, text=texto, reply_markup=reply_markup)
+    
+    connection.close()
+
+
+# Comando /inmersiones
 def inmersiones(update: Update, context, private=False):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
@@ -102,13 +141,13 @@ def inmersiones_detalles(update: Update, context):
     else:
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas = inmersion
-            cursor.execute("SELECT * FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
+            cursor.execute("SELECT user_id, username, observacion FROM usuarios LEFT JOIN observaciones ON usuarios.user_id = observaciones.user_id WHERE inmersion_id=%s", (inmersion_id,))
             usuarios = cursor.fetchall()
             
-            texto = f'Inmersión: {nombre}\nPlazas restantes: {plazas - len(usuarios)}'
+            texto = f'Inmersión: {nombre}\\nPlazas restantes: {plazas - len(usuarios)}'
             for usuario in usuarios:
-                user_id, inmersion_id, observacion = usuario
-                texto += f'\n- Usuario ID {user_id}: {observacion} (User ID: {user_id})'
+                user_id, username, observacion = usuario
+                texto += f'\\n- {username} (User ID: {user_id}): {observacion}'
             
             update.message.reply_text(texto)
     
@@ -119,6 +158,10 @@ def crear_inmersion(update: Update, context):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
         update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+    
+    if not is_admin(user_id, chat_id, bot):
+        update.message.reply_text('No tienes autorización para usar este comando.')
         return
     
     if len(context.args) < 3:
@@ -144,6 +187,10 @@ def borrar_inmersion(update: Update, context):
         update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
+    if not is_admin(user_id, chat_id, bot):
+        update.message.reply_text('No tienes autorización para usar este comando.')
+        return    
+
     if len(context.args) != 1:
         update.message.reply_text('Uso incorrecto. El uso correcto es: /borrar_inmersion <ID del evento>')
         return
@@ -167,6 +214,10 @@ def observaciones(update: Update, context):
         update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
+    if not is_admin(user_id, chat_id, bot):
+        update.message.reply_text('No tienes autorización para usar este comando.')
+        return
+
     if len(context.args) < 3:
         update.message.reply_text('Uso incorrecto. El uso correcto es: /observaciones <ID del evento> <ID del usuario> <Observaciones>')
         return
@@ -188,6 +239,10 @@ def eliminar_usuario(update: Update, context):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
         update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+    
+    if not is_admin(user_id, chat_id, bot):
+        update.message.reply_text('No tienes autorización para usar este comando.')
         return
     
     if len(context.args) != 2:
@@ -213,6 +268,10 @@ def purgar_datos(update: Update, context):
         update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
+    if not is_admin(user_id, chat_id, bot):
+        update.message.reply_text('No tienes autorización para usar este comando.')
+        return
+    
     connection = connect_db()
     with connection.cursor() as cursor:
         cursor.execute("DELETE FROM observaciones")
@@ -229,11 +288,12 @@ def button(update: Update, context):
     query.answer()
     
     user_id = query.from_user.id
+    username = query.from_user.username  # Obtener el nombre de usuario
     inmersion_id = query.data.split('_')[1]
     
     connection = connect_db()
     with connection.cursor() as cursor:
-        cursor.execute("INSERT INTO usuarios (inmersion_id, user_id) VALUES (%s, %s)", (inmersion_id, user_id))
+        cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
         connection.commit()
     
     query.edit_message_text(text=f'Te has apuntado a la inmersión {inmersion_id}.')
@@ -247,8 +307,8 @@ def main():
     dp = updater.dispatcher
     
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("inmersiones", lambda update, context: inmersiones(update, context, private=False)))
-    dp.add_handler(CommandHandler("ver", lambda update, context: inmersiones(update, context, private=True)))
+    dp.add_handler(CommandHandler("ver", ver))
+    dp.add_handler(CommandHandler("inmersiones", inmersiones))
     dp.add_handler(CommandHandler("baja", baja))
     dp.add_handler(CommandHandler("inmersiones_detalles", inmersiones_detalles))
     dp.add_handler(CommandHandler("crear_inmersion", crear_inmersion))
