@@ -1,0 +1,6 @@
+# Ignorar archivos
+.env
+pyvenv.cfg
+lib/
+include/
+bin/
