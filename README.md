@@ -44,7 +44,7 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
    - **Uso**: `/baja <ID del evento>`
    - **Ejemplo**:
      ```
-   /inmersiones 4
+     /baja 54
      ```
 
 ### Comandos para Administradores
