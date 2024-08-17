@@ -39,6 +39,15 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      ```
      /inmersiones
      ```
+3. **`/baja`**
+   - **Descripción**: Darse de baja de una inmersión..
+   - **Uso**: `/baja <ID del evento>`
+   - **Ejemplo**:
+     ```
+   Queremos darnos de baja de la inmersión porque no podemos asistir. Buscamos el ID de la inmersión y lo ponemos    del siguiente modo:
+     /inmersiones 4
+     ```
+
 ### Comandos para Administradores
 **Nota**: Estos comandos solo pueden ser ejecutados por administradores.
 
