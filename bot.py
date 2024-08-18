@@ -545,15 +545,23 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
         async with connection.cursor() as cursor:
-            # Obtener el nombre de la inmersión
-            await cursor.execute("SELECT nombre FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
+            # Obtener el nombre y las plazas disponibles de la inmersión
+            await cursor.execute("SELECT nombre, plazas FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
             inmersion = await cursor.fetchone()
             
             if inmersion is None:
                 await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.')
                 return
 
-            nombre_inmersion = inmersion[0]
+            nombre_inmersion, plazas_disponibles = inmersion
+
+            # Verificar el número de usuarios ya registrados en la inmersión
+            await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
+            usuarios_apuntados = await cursor.fetchone()
+
+            if usuarios_apuntados[0] >= plazas_disponibles:
+                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
+                return
 
             # Verificar si el usuario ya está registrado en la inmersión
             await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (inmersion_id, user_id))
@@ -563,7 +571,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Si el usuario ya está registrado, enviar un mensaje de aviso
                 await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.')
             else:
-                # Si el usuario no está registrado, insertar el nuevo registro
+                # Si el usuario no está registrado y hay plazas disponibles, insertar el nuevo registro
                 await cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
                 await connection.commit()
 
