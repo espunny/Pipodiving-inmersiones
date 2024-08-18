@@ -1,5 +1,6 @@
 # Ignorar archivos
 .env
+test.py
 pyvenv.cfg
 lib/
 include/

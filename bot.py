@@ -3,9 +3,14 @@
 # La base de datos estará en un servidor MariaDb
 import os
 import aiomysql
+import pymysql
+import asyncio
 from dotenv import load_dotenv
-from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, CallbackQueryHandler, Filters, MessageHandler, Updater, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+# from telegram.ext import CommandHandler, CallbackQueryHandler, Filters, MessageHandler, Updater, ContextTypes
+from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes, Application, MessageHandler, filters
+from telegram.error import Forbidden
+
 
 # Cargar variables de entorno desde el archivo .env
 load_dotenv()
@@ -20,8 +25,8 @@ AUTHORIZED_GROUP_ID = os.getenv('AUTHORIZED_GROUP_ID')
 AUTHORIZED_CHAT_ID = os.getenv('AUTHORIZED_CHAT_ID')
 
 # Saber si un usuario es administrador
-def is_admin(user_id, chat_id, bot):
-    chat_administrators = bot.get_chat_administrators(chat_id)
+async def is_admin(user_id, chat_id, bot):
+    chat_administrators = await bot.get_chat_administrators(chat_id)  # Await la coroutine
     for admin in chat_administrators:
         if admin.user.id == user_id:
             return True
@@ -38,43 +43,58 @@ def authorized(chat_id):
 # Función de inicio
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    await update.message.reply_text(f'Bienvenido! Tu chat_id es {chat_id}.')
+    user_id = update.effective_user.id
+    await update.message.reply_text(f'Bienvenido! Tu chat_id es {chat_id} tu usuario es:{user_id} . {MYSQL_USER}')
 
 # Comando /ver
-async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
-
-    user_id = update.effective_user.id
-
-    # Conexión a la base de datos usando aiomysql para async (si se usa pymysql, la conexión es síncrona)
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+    
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        await cursor.execute("SELECT * FROM inmersiones")
+        await cursor.execute("SELECT inmersion_id, nombre, plazas FROM inmersiones")
         inmersiones = await cursor.fetchall()
-
+    
     if not inmersiones:
-        await context.bot.send_message(chat_id=user_id, text='No hay inmersiones disponibles.')
+        await update.message.reply_text('No hay inmersiones disponibles.')
     else:
+        # Variable para almacenar todo el mensaje
+        texto_completo = ""
+
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas = inmersion
 
             async with connection.cursor() as cursor:
-                await cursor.execute("SELECT user_id, username, observacion FROM usuarios LEFT JOIN observaciones ON usuarios.user_id = observaciones.user_id WHERE inmersion_id=%s", (inmersion_id,))
+                # Obtener la lista de usuarios apuntados a la inmersión
+                await cursor.execute("""
+                    SELECT username
+                    FROM usuarios
+                    WHERE inmersion_id = %s
+                """, (inmersion_id,))
                 usuarios = await cursor.fetchall()
 
-            texto = f'Inmersión: {nombre}\\nPlazas restantes: {plazas - len(usuarios)}'
-            for usuario in usuarios:
-                user_id, username, observacion = usuario
-                texto += f'\\n- {username} (User ID: {user_id}): {observacion}'
+            # Crear el texto para esta inmersión
+            texto = f'**{nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
+            texto += '\n'.join(f'- {username}' for (username,) in usuarios)
 
-            keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await context.bot.send_message(chat_id=user_id, text=texto, reply_markup=reply_markup)
+            # Agregar el texto al mensaje completo con un mayor espacio entre inmersiones
+            texto_completo += texto + "\n---\n"
 
+        # Añadir el mensaje informativo al final
+        texto_completo += ("Para apuntarte, usa el comando /inmersiones, "
+                           "para darte de baja, utiliza el comando /baja y "
+                           "para informar de que necesitas equipo, puedes usar /alquilerequipo.")
+
+        # Enviar todo el mensaje en un solo envío
+        if private:
+            await context.bot.send_message(chat_id=update.effective_user.id, text=texto_completo.strip(), parse_mode='Markdown')
+        else:
+            await update.message.reply_text(texto_completo.strip(), parse_mode='Markdown')
+    
     connection.close()
 
 
@@ -85,7 +105,7 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
         await cursor.execute("SELECT * FROM inmersiones")
@@ -98,13 +118,19 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
             inmersion_id, nombre, plazas = inmersion
 
             async with connection.cursor() as cursor:
-                await cursor.execute("SELECT * FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
+                # Realiza un JOIN para obtener el username y la observación
+                await cursor.execute("""
+                    SELECT u.user_id, u.username, o.observacion
+                    FROM usuarios u
+                    LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
+                    WHERE u.inmersion_id = %s
+                """, (inmersion_id, inmersion_id))
                 usuarios = await cursor.fetchall()
             
-            texto = f'Inmersión: {nombre}\nPlazas restantes: {plazas - len(usuarios)}'
+            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {plazas - len(usuarios)}'
             for usuario in usuarios:
-                user_id, inmersion_id, observacion = usuario
-                texto += f'\n- Usuario ID {user_id}: {observacion}'
+                user_id, username, observacion = usuario
+                texto += f'\n- {username}: {observacion if observacion else "Sin observaciones"}'
             
             keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -121,31 +147,81 @@ async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not authorized(chat_id):
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
-    
-    if len(context.args) != 1:
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /baja <ID del evento>')
-        return
-    
-    evento_id = context.args[0]
+
     user_id = update.effective_user.id
-    
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        await cursor.execute("DELETE FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (evento_id, user_id))
-        await connection.commit()
+        # Obtener las inmersiones a las que el usuario está apuntado
+        await cursor.execute("""
+            SELECT i.inmersion_id, i.nombre
+            FROM inmersiones i
+            JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            WHERE u.user_id = %s
+        """, (user_id,))
+        inmersiones = await cursor.fetchall()
+
+    if not inmersiones:
+        await update.message.reply_text("No estás apuntado a ninguna inmersión.")
+        connection.close()
+        return
+
+    # Crear botones para cada inmersión
+    keyboard = [[InlineKeyboardButton(nombre, callback_data=f'baja_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Selecciona la inmersión de la que deseas darte de baja:", reply_markup=reply_markup)
     
-    await update.message.reply_text(f'Te has dado de baja de la inmersión con ID {evento_id}.')
     connection.close()
 
+async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    data = query.data.split('_')
+    inmersion_id = data[1]
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Obtener el nombre de la inmersión para confirmación
+            await cursor.execute("SELECT nombre FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
+            inmersion = await cursor.fetchone()
+            
+            if inmersion is None:
+                await query.edit_message_text(text="No se encontró ninguna inmersión con ese ID.")
+                connection.close()
+                return
+            
+            nombre_inmersion = inmersion[0]
+
+            # Eliminar al usuario de la inmersión
+            await cursor.execute("DELETE FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (inmersion_id, user_id))
+            await connection.commit()
+
+        # Confirmar la baja al usuario
+        await query.edit_message_text(text=f'Te has dado de baja de la inmersión {nombre_inmersion}.')
+    finally:
+        connection.close()
+
 # Comando /inmersiones_detalles (Solo Admin)
-async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
+    sender_user_id = update.effective_user.id  # ID del usuario que envía el comando
+    bot = context.bot
+
     if not authorized(chat_id):
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+    if not await is_admin(sender_user_id, chat_id, bot):
+        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
+        return
+    
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
         await cursor.execute("SELECT * FROM inmersiones")
@@ -158,15 +234,26 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
             inmersion_id, nombre, plazas = inmersion
 
             async with connection.cursor() as cursor:
-                await cursor.execute("SELECT user_id, username, observacion FROM usuarios LEFT JOIN observaciones ON usuarios.user_id = observaciones.user_id WHERE inmersion_id=%s", (inmersion_id,))
+                # Realiza un JOIN para obtener el username y la observación
+                await cursor.execute("""
+                    SELECT u.user_id, u.username, o.observacion
+                    FROM usuarios u
+                    LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
+                    WHERE u.inmersion_id = %s
+                """, (inmersion_id, inmersion_id))
                 usuarios = await cursor.fetchall()
             
-            texto = f'Inmersión: {nombre}\\nPlazas restantes: {plazas - len(usuarios)}'
+            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {plazas - len(usuarios)}'
             for usuario in usuarios:
                 user_id, username, observacion = usuario
-                texto += f'\\n- {username} (User ID: {user_id}): {observacion}'
+                texto += f'\n- {username} (Usuario ID: {user_id}): {observacion if observacion else "Sin observaciones"}'
             
-            await update.message.reply_text(texto)
+            keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            if private:
+                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup)
+            else:
+                await update.message.reply_text(texto, reply_markup=reply_markup)
     
     connection.close()
 
@@ -176,27 +263,36 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     bot = context.bot
 
+    # Verifica si update.message es None
+    if update.message is None:
+        await context.bot.send_message(chat_id=chat_id, text='Este comando solo se puede usar en un contexto de mensaje de texto.')
+        return
+
     if not authorized(chat_id):
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    if not is_admin(user_id, chat_id, bot):
-        await update.message.reply_text('No tienes autorización para usar este comando.')
+    if not await is_admin(user_id, chat_id, bot):  # Await para la verificación de administrador
+        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
         return
     
-    if len(context.args) < 3:
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /crear_inmersion <ID del evento> <Nombre del evento> <Plazas>')
+    if len(context.args) < 2:  # Ahora se requieren solo dos argumentos: nombre y plazas
+        await update.message.reply_text('Uso incorrecto. El uso correcto es: /crear_inmersion <Nombre del evento> <Plazas>')
         return
     
-    evento_id = context.args[0]
-    nombre = ' '.join(context.args[1:-1])
-    plazas = context.args[-1]
+    nombre = ' '.join(context.args[:-1])  # Toma todos los argumentos menos el último como nombre
+    plazas = context.args[-1]  # Toma el último argumento como plazas
     
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        await cursor.execute("INSERT INTO inmersiones (inmersion_id, nombre, plazas) VALUES (%s, %s, %s)", (evento_id, nombre, plazas))
+        # Insertar la inmersión sin especificar el ID, que será generado automáticamente
+        await cursor.execute("INSERT INTO inmersiones (nombre, plazas) VALUES (%s, %s)", (nombre, plazas))
         await connection.commit()
+
+        # Obtener el ID generado automáticamente
+        await cursor.execute("SELECT LAST_INSERT_ID()")
+        (evento_id,) = await cursor.fetchone()
     
     await update.message.reply_text(f'Inmersión creada: {nombre} (ID: {evento_id}, Plazas: {plazas}).')
     connection.close()
@@ -211,60 +307,160 @@ async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    if not is_admin(user_id, chat_id, bot):
+    if not await is_admin(user_id, chat_id, bot):
         await update.message.reply_text('No tienes autorización para usar este comando.')
         return    
 
-    if len(context.args) != 1:
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /borrar_inmersion <ID del evento>')
-        return
-    
-    evento_id = context.args[0]
-    
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        await cursor.execute("DELETE FROM observaciones WHERE inmersion_id=%s", (evento_id,))
-        await cursor.execute("DELETE FROM usuarios WHERE inmersion_id=%s", (evento_id,))
-        await cursor.execute("DELETE FROM inmersiones WHERE inmersion_id=%s", (evento_id,))
-        await connection.commit()
+        # Obtener todas las inmersiones con el número de usuarios apuntados
+        await cursor.execute("""
+            SELECT i.inmersion_id, i.nombre, COUNT(u.user_id) as num_usuarios
+            FROM inmersiones i
+            LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            GROUP BY i.inmersion_id, i.nombre
+        """)
+        inmersiones = await cursor.fetchall()
+
+    if not inmersiones:
+        await update.message.reply_text("No hay inmersiones disponibles para borrar.")
+        connection.close()
+        return
+
+    # Crear botones para cada inmersión con el número de usuarios apuntados
+    keyboard = [
+        [InlineKeyboardButton(f"{nombre} ({num_usuarios} usuarios)", callback_data=f'borrar_{inmersion_id}')]
+        for inmersion_id, nombre, num_usuarios in inmersiones
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Selecciona una inmersión para borrarla:", reply_markup=reply_markup)
     
-    await update.message.reply_text(f'Inmersión con ID {evento_id} ha sido borrada.')
     connection.close()
+
+async def button_borrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    inmersion_id = query.data.split('_')[1]
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Borrar la inmersión (las dependencias se manejarán por ON DELETE CASCADE en la base de datos)
+            await cursor.execute("DELETE FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
+            await connection.commit()
+
+        # Confirmar la eliminación al administrador
+        await query.edit_message_text(text=f'La inmersión seleccionada ha sido borrada.')
+    finally:
+        connection.close()
 
 # Comando /observaciones (Solo Admin)
 async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    sender_user_id = update.effective_user.id  # ID del usuario que envía el comando
     bot = context.bot
+    user_id = update.effective_user.id
 
     if not authorized(chat_id):
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    if not is_admin(sender_user_id, chat_id, bot):
-        await update.message.reply_text('No tienes autorización para usar este comando.')
+    if not await is_admin(user_id, chat_id, bot):
+        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
         return
 
-    if len(context.args) < 3:
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /observaciones <ID del evento> <ID del usuario> <Observaciones>')
-        return
-    
-    evento_id = context.args[0]
-    user_id = context.args[1]
-    observacion = ' '.join(context.args[2:])
-    
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", (evento_id, user_id, observacion))
-        await connection.commit()
+        # Obtener todas las inmersiones
+        await cursor.execute("SELECT inmersion_id, nombre FROM inmersiones")
+        inmersiones = await cursor.fetchall()
+
+    if not inmersiones:
+        await update.message.reply_text("No hay inmersiones disponibles.")
+        connection.close()
+        return
+
+    # Crear botones para cada inmersión
+    keyboard = [[InlineKeyboardButton(nombre, callback_data=f'select_inmersion_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Selecciona una inmersión para ver los usuarios apuntados:", reply_markup=reply_markup)
     
-    await update.message.reply_text(f'Observación añadida para el usuario {user_id} en la inmersión {evento_id}.')
     connection.close()
 
+async def select_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    inmersion_id = query.data.split('_')[2]
+    context.user_data['selected_inmersion'] = inmersion_id
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        # Obtener usuarios apuntados a la inmersión seleccionada
+        await cursor.execute("SELECT user_id, username FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
+        usuarios = await cursor.fetchall()
+
+    if not usuarios:
+        await query.edit_message_text("No hay usuarios apuntados a esta inmersión.")
+        connection.close()
+        return
+
+    # Crear botones para cada usuario
+    keyboard = [[InlineKeyboardButton(username, callback_data=f'select_user_{user_id}')] for user_id, username in usuarios]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text("Selecciona un usuario para agregar o modificar la observación:", reply_markup=reply_markup)
+    
+    connection.close()
+
+async def select_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.data.split('_')[2]
+    context.user_data['selected_user'] = user_id
+
+    await query.edit_message_text(f"Escribe la observación para el usuario seleccionado:")
+
+    return 'WAITING_FOR_OBSERVATION'
+
+async def handle_observation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    observacion = update.message.text
+    inmersion_id = context.user_data['selected_inmersion']
+    user_id = context.user_data['selected_user']
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Comprobar si ya existe una observación para este user_id y evento_id
+            await cursor.execute("SELECT COUNT(*) FROM observaciones WHERE inmersion_id=%s AND user_id=%s", 
+                                 (inmersion_id, user_id))
+            (count,) = await cursor.fetchone()
+
+            if count > 0:
+                # Si ya existe, actualizar la observación existente
+                await cursor.execute("UPDATE observaciones SET observacion=%s WHERE inmersion_id=%s AND user_id=%s", 
+                                     (observacion, inmersion_id, user_id))
+                await update.message.reply_text(f'Observación actualizada para el usuario en la inmersión seleccionada.')
+            else:
+                # Si no existe, insertar una nueva observación
+                await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", 
+                                     (inmersion_id, user_id, observacion))
+                await update.message.reply_text(f'Observación añadida para el usuario en la inmersión seleccionada.')
+            
+            await connection.commit()
+    finally:
+        connection.close()
+
 # Comando /eliminar_usuario (Solo Admin)
-async def eliminar_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     sender_user_id = update.effective_user.id  # ID del usuario que envía el comando
     bot = context.bot
@@ -273,18 +469,18 @@ async def eliminar_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    if not is_admin(sender_user_id, chat_id, bot):
+    if not await is_admin(sender_user_id, chat_id, bot):
         await update.message.reply_text('No tienes autorización para usar este comando.')
         return
     
     if len(context.args) != 2:
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /eliminar_usuario <ID del evento> <ID del usuario>')
+        await update.message.reply_text('Uso incorrecto. El uso correcto es: /eliminar_buceador <ID del evento> <ID del usuario>')
         return
     
     evento_id = context.args[0]
     user_id = context.args[1]
     
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
         await cursor.execute("DELETE FROM observaciones WHERE inmersion_id=%s AND user_id=%s", (evento_id, user_id))
@@ -297,70 +493,178 @@ async def eliminar_usuario(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Comando /purgar_datos (Solo Admin)
 async def purgar_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    sender_user_id = update.effective_user.id  # ID del usuario que envía el comando
+    sender_user_id = update.effective_user.id
     bot = context.bot
 
     if not authorized(chat_id):
         await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    if not is_admin(sender_user_id, chat_id, bot):
+    if not await is_admin(sender_user_id, chat_id, bot):
         await update.message.reply_text('No tienes autorización para usar este comando.')
         return
-    
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
 
-    async with connection.cursor() as cursor:
-        await cursor.execute("DELETE FROM observaciones")
-        await cursor.execute("DELETE FROM usuarios")
-        await cursor.execute("DELETE FROM inmersiones")
-        await connection.commit()
-    
-    await update.message.reply_text('Todos los datos han sido purgados del sistema.')
-    connection.close()
+    # Crear un botón de confirmación con un icono de radioactivo
+    keyboard = [
+        [InlineKeyboardButton("☢️ Sí, estoy seguro", callback_data='confirmar_purgar')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("⚠️ ¿Estás seguro de que deseas purgar todos los datos del sistema?", reply_markup=reply_markup)
+
+# Paso 2: Ejecutar la purga de datos si se confirma
+async def confirmar_purgar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            await cursor.execute("DELETE FROM observaciones")
+            await cursor.execute("DELETE FROM usuarios")
+            await cursor.execute("DELETE FROM inmersiones")
+            await connection.commit()
+
+        # Confirmar la eliminación al administrador
+        await query.edit_message_text(text='☢️ Todos los datos han sido purgados del sistema.')
+    finally:
+        connection.close()
 
 # Manejar la respuesta del botón "Apuntarse"
+
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    
-    user_id = query.from_user.id
-    username = query.from_user.username  # Obtener el nombre de usuario
+
+    user_id = update.effective_user.id
+    username = update.effective_user.first_name
     inmersion_id = query.data.split('_')[1]
-    
-    connection = await aiomysql.connect(host='your_host', user='your_user', password='your_password', db='your_db')
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Obtener el nombre de la inmersión
+            await cursor.execute("SELECT nombre FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
+            inmersion = await cursor.fetchone()
+            
+            if inmersion is None:
+                await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.')
+                return
+
+            nombre_inmersion = inmersion[0]
+
+            # Verificar si el usuario ya está registrado en la inmersión
+            await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (inmersion_id, user_id))
+            (count,) = await cursor.fetchone()
+
+            if count > 0:
+                # Si el usuario ya está registrado, enviar un mensaje de aviso
+                await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.')
+            else:
+                # Si el usuario no está registrado, insertar el nuevo registro
+                await cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
+                await connection.commit()
+
+                # Notificar al usuario en el chat
+                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.')
+                try:
+                    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.')
+                except Forbidden:
+                    # Si no puede enviar un mensaje privado, envía una respuesta en el grupo
+                    await query.message.reply_text(f'{username}, te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion} en este grupo.')
+
+    finally:
+        connection.close()
+
+#El usuario podrá marcar la inmersión en la que necesita equipo.
+async def alquilerequipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        await cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
-        await connection.commit()
-    
-    await query.edit_message_text(text=f'Te has apuntado a la inmersión {inmersion_id}.')
-    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {inmersion_id}. Para darte de baja, usa el comando /baja {inmersion_id}.')
+        # Obtener las inmersiones a las que el usuario está apuntado
+        await cursor.execute("""
+            SELECT i.inmersion_id, i.nombre
+            FROM inmersiones i
+            JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            WHERE u.user_id = %s
+        """, (user_id,))
+        inmersiones = await cursor.fetchall()
+
+    if not inmersiones:
+        await update.message.reply_text("No estás apuntado a ninguna inmersión.")
+        return
+
+    # Crear botones para cada inmersión
+    keyboard = [[InlineKeyboardButton(nombre, callback_data=f'equipo_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("¿En qué inmersión necesitas equipo?", reply_markup=reply_markup)
     
     connection.close()
 
+async def button_equipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    data = query.data.split('_')
+    inmersion_id = data[1]
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Comprobar si ya existe un registro en observaciones
+            await cursor.execute("SELECT COUNT(*) FROM observaciones WHERE inmersion_id=%s AND user_id=%s", 
+                                 (inmersion_id, user_id))
+            (count,) = await cursor.fetchone()
+
+            if count > 0:
+                # Si ya existe un registro, informar al usuario
+                await query.edit_message_text(text="Ya habías informado que necesitas equipo para esta inmersión.")
+            else:
+                # Insertar en la tabla observaciones
+                await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", 
+                                     (inmersion_id, user_id, "Necesita equipo"))
+                await connection.commit()
+
+                # Confirmar la acción al usuario
+                await query.edit_message_text(text="Se ha registrado que necesitas equipo en la inmersión seleccionada.")
+    finally:
+        connection.close()
+
 # Ejecutar el bot
-async def main():
+def main():
     # Crear la aplicación usando el nuevo enfoque asíncrono
-    application = Application.builder().token("TOKEN").build()
+    application = Application.builder().token(TOKEN).build()
     
     # Registrar los manejadores de comandos
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("ver", ver))
     application.add_handler(CommandHandler("inmersiones", inmersiones))
     application.add_handler(CommandHandler("baja", baja))
+    application.add_handler(CallbackQueryHandler(button_baja, pattern="^baja_"))
     application.add_handler(CommandHandler("inmersiones_detalles", inmersiones_detalles))
     application.add_handler(CommandHandler("crear_inmersion", crear_inmersion))
     application.add_handler(CommandHandler("borrar_inmersion", borrar_inmersion))
+    application.add_handler(CallbackQueryHandler(button_borrar, pattern="^borrar_"))
     application.add_handler(CommandHandler("observaciones", observaciones))
-    application.add_handler(CommandHandler("eliminar_usuario", eliminar_usuario))
+    application.add_handler(CallbackQueryHandler(select_inmersion, pattern="^select_inmersion_"))
+    application.add_handler(CallbackQueryHandler(select_user, pattern="^select_user_"))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_observation))
+    application.add_handler(CommandHandler("eliminar_buceador", eliminar_buceador))
     application.add_handler(CommandHandler("purgar_datos", purgar_datos))
+    application.add_handler(CallbackQueryHandler(confirmar_purgar, pattern='^confirmar_purgar$'))
+    application.add_handler(CommandHandler("alquilerequipo", alquilerequipo))
+    application.add_handler(CallbackQueryHandler(button_equipo, pattern="^equipo_"))
     application.add_handler(CallbackQueryHandler(button, pattern='^apuntarse_'))
 
-    # Iniciar el bot de manera asíncrona
-    await application.start()
-    await application.updater.start_polling()
-    await application.idle()
+    # Ejecutar el bot en modo polling
+    application.run_polling()
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
