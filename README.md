@@ -1,5 +1,5 @@
 
-# DivingEvents Beta2.1
+# DivingEvents Beta v3 (Versión multiclub)
 
 Support on Telegram @t850model102
 
