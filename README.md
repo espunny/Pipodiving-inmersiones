@@ -9,10 +9,11 @@ Se agradece cualquier idea o aportación.
 Se puede probar el funcionamiento en el siguiente grupo privado. Solamente hay que poner el símbolo "/" o pinchar en el icono de comandos y se mostrarán los comandos disponibles.
 https://t.me/+2yurjF0IprU0Y2E0
 
-En esta versión los administradores del grupo, son los administradores del bot.
+Mejoras de esa versión:
+- El mismo Bot, podrá funcionar en varios grupos. Por motivos de rendimiento y seguridad aún hay una lista blanca de grupos en la variable de entorno: AUTHORIZED_GROUP_ID. El administrador que quiera instalar el bot en un grupo no autorizado tendrá que solicitarlo con un mensaje.
+- Se ha añadido un timestamp en las inmersiones para poder purgar la base de datos después de un tiempo. Necesario si quedan inmeriones huérfanas u olvidadas en la base de datos.
 
-Si intentas añadir el bot a tu grupo, no funcionará. Tendrás que crear tu propio bot con el código fuente de esta página y asignar el ID de tu Grupo en las variables de tu SO.
-Si necesitas ayuda profesional para implantarlo en tu grupo de telegram, puedes contactar conmigo en privado por Telegram: @t850model102
+En esta versión los administradores del grupo, son los administradores del bot.
 
 --------
 Telegram bot to manage dives of a diving club.

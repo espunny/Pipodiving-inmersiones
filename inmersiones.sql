@@ -1,3 +1,9 @@
+--NUEVOS CAMPOS EN LA BASE DE DATOS:
+ALTER TABLE inmersiones
+ADD COLUMN active_group BIGINT(11) NOT NULL,
+ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD INDEX idx_active_group (active_group);
+
 -- phpMyAdmin SQL Dump
 -- version 5.2.1
 -- https://www.phpmyadmin.net/
