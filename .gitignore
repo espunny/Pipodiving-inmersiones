@@ -2,6 +2,7 @@
 .env
 test.py
 pyvenv.cfg
+.DS_Store
 requirements.in
 lib/
 include/
