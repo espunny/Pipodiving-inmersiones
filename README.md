@@ -1,5 +1,5 @@
 
-# DivingEvents Beta2
+# DivingEvents Beta2.1
 
 Support on Telegram @t850model102
 
