@@ -1,0 +1,8 @@
+# Ignorar archivos
+.env
+test.py
+pyvenv.cfg
+requirements.in
+lib/
+include/
+bin/

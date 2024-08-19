@@ -1,13 +1,15 @@
+
+# DivingEvents Beta2
+
 Support on Telegram @t850model102
 
 Bot de Telegram para gestionar inmersiones de un club de buceo.
-Esta es una versión preliminar.
 
 Se agradece cualquier idea o aportación.
 Se puede probar el funcionamiento en el siguiente grupo privado. Solamente hay que poner el símbolo "/" o pinchar en el icono de comandos y se mostrarán los comandos disponibles.
-[https://t.me/+pAmFphtBgNo5MDU8](https://t.me/+pAmFphtBgNo5MDU8)
+https://t.me/+2yurjF0IprU0Y2E0
 
-Si necesitáis ser administrador para probar el resto de funcionalidades, podéis usar el siguiente comando. </hacerme_admin> (Este comando no debería estar disponible en un entorno de producción.
+En esta versión los administradores del grupo, son los administradores del bot.
 
 Si intentas añadir el bot a tu grupo, no funcionará. Tendrás que crear tu propio bot con el código fuente de esta página y asignar el ID de tu Grupo en las variables de tu SO.
 Si necesitas ayuda profesional para implantarlo en tu grupo de telegram, puedes contactar conmigo en privado por Telegram: @t850model102
@@ -39,14 +41,6 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      ```
      /inmersiones
      ```
-3. **`/baja`**
-   - **Descripción**: Darse de baja de una inmersión..
-   - **Uso**: `/baja <ID del evento>`
-   - **Ejemplo**:
-     ```
-     /baja 54
-     ```
-
 ### Comandos para Administradores
 **Nota**: Estos comandos solo pueden ser ejecutados por administradores.
 
@@ -98,14 +92,13 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      /purgar_datos
      ```
 
-## Notas Adicionales
-- El bot verifica que el `chat_id` del grupo coincida con el autorizado para evitar usos no autorizados.
-- Asegúrate de que los comandos que requieran parámetros se utilicen con el formato adecuado para evitar errores.
+## Autor
 
-## Futuras mejoras
-- Cambiar el nombre de una inmersión cuando ya se ha publicado.
-- No permitir que un buceador se apunte a una inmersión si queda muy poco tiempo (Se podrá configurar esa duración).
-- Envío de correos electrónicos de confirmación.
-- Gestión de Bonos de inmersiones.
+Rubén García - [@t850model102](@t850model102)
 
-Este bot está en versión Beta 1, es funcional, pero se esperan futuras mejoras y correcciones.
+
+
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+[![GPLv3 License](https://img.shields.io/badge/License-GPL%20v3-yellow.svg)](https://opensource.org/licenses/)
+[![AGPL License](https://img.shields.io/badge/license-AGPL-blue.svg)](http://www.gnu.org/licenses/agpl-3.0)
+

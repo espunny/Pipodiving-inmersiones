@@ -1,583 +1,678 @@
-# Versión Beta 1
 
-from telegram import Update
-from telegram.ext import Application, CommandHandler, CallbackContext, CallbackQueryHandler
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
-import json
+# Versión con bases de datos
+# La base de datos estará en un servidor MariaDb
 import os
-
-def load_data(filename='events_data.json'):
-    if os.path.exists(filename):
-        with open(filename, 'r') as file:
-            data = json.load(file)
-            
-            # Convertir las claves de los eventos a enteros y listas a conjuntos
-            events = {
-                int(event_id): {
-                    **event,
-                    'registered_users': set(event.get('registered_users', [])),
-                    'blacklisted_users': set(event.get('blacklisted_users', []))
-                } 
-                for event_id, event in data.get('events', {}).items()
-            }
-            
-            # Cargar observaciones si existen
-            observaciones = data.get('observaciones', {})
-            
-            return {
-                'events': events,
-                'admin_ids': set(data.get('admin_ids', [])),
-                'observaciones': observaciones
-            }
-    return {
-        'events': {},
-        'admin_ids': set(),
-        'observaciones': {}
-    }
+import aiomysql
+import pymysql
+import asyncio
+from dotenv import load_dotenv
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+# from telegram.ext import CommandHandler, CallbackQueryHandler, Filters, MessageHandler, Updater, ContextTypes
+from telegram.ext import CommandHandler, CallbackQueryHandler, ContextTypes, Application, MessageHandler, filters
+from telegram.error import Forbidden
 
 
-def save_data(data, filename='events_data.json'):
-    try:
-        # Convertir sets a listas antes de guardar
-        data_copy = {
-            'events': {
-                event_id: {
-                    **event,
-                    'registered_users': list(event['registered_users']),
-                    'blacklisted_users': list(event['blacklisted_users'])
-                }
-                for event_id, event in data['events'].items()
-            },
-            'admin_ids': list(data['admin_ids']),
-            'observaciones': data.get('observaciones', {})
-        }
-        
-        with open(filename, 'w') as file:
-            json.dump(data_copy, file, indent=4)
-    except Exception as e:
-        print(f"Error al guardar los datos: {e}")
+# Cargar variables de entorno desde el archivo .env
+# load_dotenv()
 
-def guardar_datos():
-    save_data({
-        'events': EVENTS,  # Guarda todas las inmersiones y sus usuarios registrados
-        'admin_ids': list(ADMIN_IDS),  # Guarda la lista de administradores
-        'observaciones': OBSERVACIONES  # Guarda las observaciones actualizadas
-    })
+# Variables del sistema
+TOKEN = os.getenv('TOKEN')
+MYSQL_HOST = os.getenv('MYSQL_HOST')
+MYSQL_USER = os.getenv('MYSQL_USER')
+MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD')
+MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
+AUTHORIZED_GROUP_ID = os.getenv('AUTHORIZED_GROUP_ID')
+AUTHORIZED_CHAT_ID = os.getenv('AUTHORIZED_CHAT_ID')
 
-TOKEN = os.getenv('TOKEN') # TOKEN DE TELEGRAM
-# AUTHORIZED_GROUP_ID = os.getenv('AUTHORIZED_GROUP_ID') # GRUPOS AUTORIZADOS
-# Obtener y convertir los IDs de grupo a enteros
-AUTHORIZED_GROUP_IDS = set(map(int, os.getenv('AUTHORIZED_GROUP_ID', '').split(',')))
-WEBHOOK_URL = os.getenv('WEBHOOK_URL')  # URL del webhook
-OBSERVACIONES = {} # Observaciones que pueden añadir los administradores.
+# Saber si un usuario es administrador
+async def is_admin(user_id, chat_id, bot):
+    chat_administrators = await bot.get_chat_administrators(chat_id)  # Await la coroutine
+    for admin in chat_administrators:
+        if admin.user.id == user_id:
+            return True
+    return False
 
-# Estado global de eventos
-# EVENTS = {}
-# ADMIN_IDS = {int(admin_id) for admin_id in os.getenv('ADMIN_IDS', '').split(',')} # Id de los administradores
+# Conectar a la base de datos
+def connect_db():
+    return pymysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
-data = load_data()  # Carga todos los datos al inicio
-EVENTS = data.get('events', {})  # Cargar inmersiones
-ADMIN_IDS = set(data.get('admin_ids', []))  # Cargar administradores
+# Verificación de autorización
+def authorized(chat_id):
+    return str(chat_id) == AUTHORIZED_GROUP_ID or str(chat_id) in AUTHORIZED_CHAT_ID.split(',')
 
-
-async def purgar_datos(update: Update, context: CallbackContext):
+# Función de inicio
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
-        return
-        
     user_id = update.effective_user.id
-    # Verificar que el comando es ejecutado por un administrador
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
-        return
+    await update.message.reply_text(f'Bienvenido! Tu chat_id es {chat_id} tu usuario es:{user_id} . {MYSQL_USER}')
 
-    # Vaciar las inmersiones y observaciones
-    EVENTS.clear()
-    OBSERVACIONES.clear()
-
-    # Guardar el estado vacío
-    guardar_datos()
-
-    await update.message.reply_text("Todas las inmersiones y observaciones han sido purgadas.")
-
-
-async def start(update: Update, context: CallbackContext):
+# Comando /ver
+async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
-    await update.message.reply_text(f"El chat_id de este grupo es: {chat_id}")
-
-    chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
-        return
-
-   # Cargar y volcar el contenido del archivo JSON
-    try:
-        with open('events_data.json', 'r') as file:
-            data = json.load(file)
-            # Volcar los datos como una cadena JSON bien formateada
-            data_dump = json.dumps(data, indent=4)
-            await update.message.reply_text(f"Volcado de datos:\n```{data_dump}```", parse_mode='Markdown')
-    except FileNotFoundError:
-        await update.message.reply_text("No se encontró el archivo de datos.")
-    except json.JSONDecodeError:
-        await update.message.reply_text("Error al decodificar el archivo JSON.")
-        
-    await update.message.reply_text("¡Hola! Usa /inmersiones para ver los detalles de los eventos.")
-
-async def observaciones(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para funcionar en este grupo.")
-        return
-        
-    user_id = update.effective_user.id
-    # Verificar que el comando es ejecutado por un administrador
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    try:
-        evento_id = int(context.args[0])  # Convertir event_id a entero
-        usuario_id = int(context.args[1])  # Convertir usuario_id a entero
-        
-        # Concatenar el resto de los argumentos como la observación
-        observacion = ' '.join(context.args[2:])
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
-        # Verificar que el evento existe en EVENTS
-        if evento_id not in EVENTS:
-            await update.message.reply_text(f"No se encontró el evento con ID: {evento_id}")
-            return
-
-        # Asegurarse de que el campo 'observaciones' exista en el evento
-        if 'observaciones' not in EVENTS[evento_id]:
-            EVENTS[evento_id]['observaciones'] = {}
-        
-        EVENTS[evento_id]['observaciones'][usuario_id] = observacion
-        
-        if evento_id not in OBSERVACIONES:
-            OBSERVACIONES[evento_id] = {}
-        
-        OBSERVACIONES[evento_id][usuario_id] = observacion
-
-        await update.message.reply_text(f"Observación añadida para el usuario {usuario_id} en el evento {evento_id}.")
-        
-        # Asegúrate de que OBSERVACIONES y EVENTS se guarden
-        guardar_datos()
-    except (IndexError, ValueError):
-        await update.message.reply_text("Uso incorrecto. Debes usar: /observaciones <ID del evento> <ID del usuario> <Observaciones>")
-
-async def baja(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-
-    # Verificar que el comando es ejecutado en un grupo autorizado (solo para grupos)
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Permiso denegado")
-        return
-
-    if len(context.args) != 1:
-        await update.message.reply_text("Uso incorrecto. Debes usar: /baja <ID del evento>")
-        return
-    try:
-        event_id = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("El ID del evento debe ser un número.")
-        return
-
-    if event_id in EVENTS:
-        event = EVENTS[event_id]
-        # Obtener el nombre del evento desde EVENTS utilizando el event_id
-        event_name = EVENTS[event_id]['name']
-        if user_id in event['registered_users']:
-            event['registered_users'].remove(user_id)
-            event['spots_left'] += 1
-            await update.message.reply_text(f"Te has dado de baja de la inmersión {event_name}.")
-            guardar_datos()
-        else:
-            await update.message.reply_text("No estás apuntado a esta inmersión.")
-    else:
-        await update.message.reply_text("La inmersión no existe.")
-        
-
-async def inmersiones(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-
-    # Verificar que el comando es ejecutado en un grupo autorizado (solo para grupos)
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Este bot NO tiene permiso para interactuar con este chat.")
-        return
-
-    if not EVENTS:
+    async with connection.cursor() as cursor:
+        await cursor.execute("SELECT inmersion_id, nombre, plazas FROM inmersiones")
+        inmersiones = await cursor.fetchall()
+    
+    if not inmersiones:
         await update.message.reply_text('No hay inmersiones disponibles.')
-        return
-
-    for event_id, event in EVENTS.items():
-        text = (f"Evento ID: {event_id}\n"
-                f"{event['name']}\n\n"
-                f"Plazas restantes: {event['spots_left']}\n")
-
-        # En grupos, mostrar la lista de usuarios apuntados
-        if update.effective_chat.type in ['group', 'supergroup']:
-            user_names = []
-            for uid in event['registered_users']:
-                try:
-                    user = await context.bot.get_chat_member(chat_id, uid)
-                    if user:
-                        user_names.append(f"- {user.user.full_name}")
-                except telegram.error.BadRequest:
-                    user_names.append(f"- Usuario {uid} - Información no disponible")
-
-            if user_names:
-                user_names_list = '\n'.join(user_names)
-                text += f"\n\nUsuarios en la inmersión:\n{user_names_list}"
-
-        # Configurar los botones de acción (Apuntarse/Desapuntarse)
-        buttons = []
-        if event['spots_left'] > 0:
-            buttons.append(InlineKeyboardButton("🤿 Apuntarme", callback_data=f'register_{event_id}'))
-
-        # Enviar el mensaje con los botones, si los hay
-        if buttons:
-            reply_markup = InlineKeyboardMarkup([buttons])
-            await update.message.reply_text(text, reply_markup=reply_markup)
-        else:
-            await update.message.reply_text(text)    
-
-async def inmersiones_detalles(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    user_id = update.effective_user.id
-
-    if update.effective_chat.type in ['group', 'supergroup']:
-        # Verificar que el comando es ejecutado en un grupo autorizado
-        if chat_id not in AUTHORIZED_GROUP_IDS:
-            await update.message.reply_text("Este bot NO tiene permiso para interactuar con este chat.")
-            return
-
-        # Verificar que el comando es ejecutado por un administrador
-        if user_id not in ADMIN_IDS:
-            await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
-            return
     else:
-        # En un chat privado, solo verificar que el usuario es un administrador
-        if user_id not in ADMIN_IDS:
-            await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
-            return
+        # Variable para almacenar todo el mensaje
+        texto_completo = ""
 
-    if not EVENTS:
+        for inmersion in inmersiones:
+            inmersion_id, nombre, plazas = inmersion
+
+            async with connection.cursor() as cursor:
+                # Obtener la lista de usuarios apuntados a la inmersión
+                await cursor.execute("""
+                    SELECT username
+                    FROM usuarios
+                    WHERE inmersion_id = %s
+                """, (inmersion_id,))
+                usuarios = await cursor.fetchall()
+
+            # Crear el texto para esta inmersión
+            texto = f'**{nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
+            texto += '\n'.join(f'- {username}' for (username,) in usuarios)
+
+            # Agregar el texto al mensaje completo con un mayor espacio entre inmersiones
+            texto_completo += texto + "\n---\n"
+
+        # Añadir el mensaje informativo al final
+        texto_completo += ("Para apuntarte, usa el comando /inmersiones, "
+                           "para darte de baja, utiliza el comando /baja y "
+                           "para informar de que necesitas equipo, puedes usar /alquilerequipo.")
+
+        # Enviar todo el mensaje en un solo envío
+        if private:
+            await context.bot.send_message(chat_id=update.effective_user.id, text=texto_completo.strip(), parse_mode='Markdown')
+        else:
+            await update.message.reply_text(texto_completo.strip(), parse_mode='Markdown')
+    
+    connection.close()
+
+
+# Comando /inmersiones
+async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
+    chat_id = update.effective_chat.id
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+    
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        await cursor.execute("SELECT * FROM inmersiones")
+        inmersiones = await cursor.fetchall()
+    
+    if not inmersiones:
         await update.message.reply_text('No hay inmersiones disponibles.')
-        return
-
-    for event_id, event in EVENTS.items():
-        text = (f"Evento ID: {event_id}\n"
-                f"Nombre: {event['name']}\n\n"
-                f"Plazas restantes: {event['spots_left']}\n"
-                f"Usuarios apuntados: {len(event['registered_users'])}")
-
-        user_details = []
-
-        if update.effective_chat.type in ['group', 'supergroup']:
-            # En un grupo, obtener el nombre del usuario y mostrar todos los datos
-            for uid in event['registered_users']:
-                try:
-                    user = await context.bot.get_chat_member(chat_id, uid)
-                    if user:
-                        # Obtener observación si existe
-                        observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
-                        if observacion:
-                            user_details.append(f"{user.user.full_name} - {uid} - {observacion}")
-                        else:
-                            user_details.append(f"{user.user.full_name} - {uid}")
-                except telegram.error.BadRequest:
-                    user_details.append(f"Usuario {uid} - Información no disponible")
-        else:
-            # En un chat privado, mostrar solo el user_id y la observación
-            for uid in event['registered_users']:
-                observacion = OBSERVACIONES.get(event_id, {}).get(uid, "")
-                if observacion:
-                    user_details.append(f"{uid} - {observacion}")
-                else:
-                    user_details.append(f"{uid} - Sin observaciones")
-
-        if user_details:
-            user_details_list = '\n'.join(user_details)
-            text += f"\n\nUsuarios en la inmersión:\n{user_details_list}"
-
-        await update.message.reply_text(text)
-        
-async def crear_inmersion(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Permiso denegado")
-        return
-        
-    user_id = update.effective_user.id
-    # Verificar que el comando es ejecutado por un administrador
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
-        return
-
-    
-    if len(context.args) < 2:
-        await update.message.reply_text("Uso: /crear_inmersion <nombre> <plazas>")
-        return
-
-    # Capturar el nombre de la inmersión (todos los argumentos menos el último)
-    event_name = ' '.join(context.args[:-1])
-
-    # Capturar el número de plazas (último argumento)
-    try:
-        max_spots = int(context.args[-1])
-        if max_spots <= 0 or max_spots > 20:
-            await update.message.reply_text("El número de plazas debe ser entre 1 y 19.")
-            return
-    except ValueError:
-        await update.message.reply_text("Por favor, introduce un número válido de plazas.")
-        return
-
-    # Crear un ID único para la inmersión
-    event_id = len(EVENTS) + 1
-    EVENTS[event_id] = {
-        'name': event_name,
-        'spots_left': max_spots,
-        'registered_users': set(),
-        'blacklisted_users': set()
-    }
-    
-    guardar_datos()
-
-    # Verificar si update.message es None
-    if update.message:
-        await update.message.reply_text(f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
     else:
-        await context.bot.send_message(chat_id=chat_id, text=f"Nuevo evento creado:\nNombre: {event_name}\nPlazas restantes: {max_spots}")
-        
-async def borrar_inmersion(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Permiso denegado")
-        return
-        
-    user_id = update.effective_user.id
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes permiso para borrar inmersiones.")
-        return
-    
-    if len(context.args) != 1:
-        await update.message.reply_text("Uso: /borrar_inmersion <ID>")
-        return
+        for inmersion in inmersiones:
+            inmersion_id, nombre, plazas = inmersion
 
-    try:
-        event_id = int(context.args[0])
-        if event_id in EVENTS:
-            del EVENTS[event_id]
-            await update.message.reply_text(f"Inmersión con ID {event_id} ha sido borrada.")
-            guardar_datos()
-        else:
-            await update.message.reply_text("Inmersión no encontrada.")
-    except ValueError:
-        await update.message.reply_text("Por favor, introduce un número válido de ID.")
-
-async def eliminar_usuario(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Permiso denegado")
-        return
-
-    user_id = update.effective_user.id
-    # Verificar que el comando es ejecutado por un administrador
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
-        return
-
-    if len(context.args) != 2:
-        await update.message.reply_text("Uso: /eliminar_usuario <evento_id> <user_id>")
-        return
-
-    try:
-        event_id = int(context.args[0])
-        target_user_id = int(context.args[1])
-        
-        if event_id in EVENTS:
-            event = EVENTS[event_id]
-            if target_user_id in event['registered_users']:
-                event['registered_users'].remove(target_user_id)
-                event['spots_left'] += 1
-                event['blacklisted_users'].add(target_user_id)  # Añadir al blacklist
-                
-                # Notificar al usuario eliminado
-                if update.message:
-                    await update.message.reply_text(f"Usuario con ID {target_user_id} ha sido eliminado de la inmersión {event_id}.")
-                else:
-                    # Usar otra forma de enviar el mensaje si update.message es None
-                    chat_id = update.effective_chat.id
-                    await context.bot.send_message(chat_id=chat_id, text=f"Usuario con ID {target_user_id} ha sido eliminado de la inmersión {event_id}.")
-                
-                guardar_datos()
-                try:
-                    await context.bot.send_message(target_user_id, f"Has sido eliminado del evento ID {event_id}.")
-                except Exception as e:
-                    print(f"No se pudo enviar el mensaje al usuario: {e}")
+            async with connection.cursor() as cursor:
+                # Realiza un JOIN para obtener el username y la observación
+                await cursor.execute("""
+                    SELECT u.user_id, u.username, o.observacion
+                    FROM usuarios u
+                    LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
+                    WHERE u.inmersion_id = %s
+                """, (inmersion_id, inmersion_id))
+                usuarios = await cursor.fetchall()
+            
+            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {plazas - len(usuarios)}'
+            for usuario in usuarios:
+                user_id, username, observacion = usuario
+                texto += f'\n- {username}: {observacion if observacion else "Sin observaciones"}'
+            
+            keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            if private:
+                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup)
             else:
-                await update.message.reply_text("Usuario no está apuntado en este evento.")
-        else:
-            await update.message.reply_text("Evento no encontrado.")
-    except ValueError:
-        await update.message.reply_text("Por favor, introduce números válidos para ID de evento y usuario.")
-
-async def handle_button(update: Update, context: CallbackContext):
-    chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Permiso denegado")
-        return
+                await update.message.reply_text(texto, reply_markup=reply_markup)
     
+    connection.close()
+
+# Comando /baja
+async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+
+    user_id = update.effective_user.id
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        # Obtener las inmersiones a las que el usuario está apuntado
+        await cursor.execute("""
+            SELECT i.inmersion_id, i.nombre
+            FROM inmersiones i
+            JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            WHERE u.user_id = %s
+        """, (user_id,))
+        inmersiones = await cursor.fetchall()
+
+    if not inmersiones:
+        await update.message.reply_text("No estás apuntado a ninguna inmersión.")
+        connection.close()
+        return
+
+    # Crear botones para cada inmersión
+    keyboard = [[InlineKeyboardButton(nombre, callback_data=f'baja_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Selecciona la inmersión de la que deseas darte de baja:", reply_markup=reply_markup)
+    
+    connection.close()
+
+async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    user_id = query.from_user.id
-    data = query.data  # Ejemplo: "register_1" o "unregister_1"
+    await query.answer()
 
-    # Extracción del event_id
+    user_id = update.effective_user.id
+    data = query.data.split('_')
+    inmersion_id = data[1]
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
     try:
-        event_id = int(data.split('_')[1])
-    except (IndexError, ValueError) as e:
-        await query.answer("Error al procesar la solicitud.")
-        return
+        async with connection.cursor() as cursor:
+            # Obtener el nombre de la inmersión para confirmación
+            await cursor.execute("SELECT nombre FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
+            inmersion = await cursor.fetchone()
+            
+            if inmersion is None:
+                await query.edit_message_text(text="No se encontró ninguna inmersión con ese ID.")
+                connection.close()
+                return
+            
+            nombre_inmersion = inmersion[0]
 
-    if event_id not in EVENTS:
-        await query.answer("Inmersión no encontrada")
-        return
+            # Eliminar al usuario de la inmersión
+            await cursor.execute("DELETE FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (inmersion_id, user_id))
+            await connection.commit()
 
-    # Obtener el id
-    event = EVENTS[event_id]
-    
-    # Obtener el nombre del evento desde EVENTS utilizando el event_id
-    event_name = EVENTS[event_id]['name']
+        # Confirmar la baja al usuario
+        await query.edit_message_text(text=f'Te has dado de baja de la inmersión {nombre_inmersion}.')
+    finally:
+        connection.close()
 
-    if user_id in event['blacklisted_users']:
-        await query.answer("No puedes apuntarte a esta inmersión.")
-        return
-
-    if query.data.startswith('register'):
-        if user_id in event['registered_users']:
-            await query.answer("¡Ya estás apuntado!")
-        elif event['spots_left'] > 0:
-            event['registered_users'].add(user_id)
-            event['spots_left'] -= 1
-            await query.answer(f"¡Te has apuntado con éxito a la inmersión '{event_name}'.\nPuedes darte de baja con el comando /baja.\nSi necesitas alquilar equipo, envía un mensaje privado al administrador!")
-            guardar_datos()
-            try:
-                await context.bot.send_message(user_id, f"Te has apuntado con éxito a la inmersión '{event_name}'.\nPuedes darte de baja con el comando /baja.\nSi necesitas alquilar equipo o hacer alguna observación, envía un mensaje privado al administrador.")
-            except Exception as e:
-                print(f"No se pudo enviar el mensaje al usuario: {e}")
-        else:
-            await query.answer("Lo siento, no hay más plazas disponibles.")
-    
-    # Actualizar el mensaje con la información del evento
-    text = (f"Evento ID: {event_id}\n"
-            f"Nombre: {event['name']}\n"
-            f"Plazas restantes: {event['spots_left']}\n"
-            f"Usuarios apuntados: {len(event['registered_users'])}")
-
-    # Obtener información de los usuarios apuntados
-    user_names = []
-    for uid in event['registered_users']:
-        user = await context.bot.get_chat_member(update.effective_chat.id, uid)
-        if user:
-            user_names.append(f"- {user.user.full_name}")
-
-    if user_names:
-        user_names_list = '\n'.join(user_names)
-        text += f"\nUsuarios apuntados:\n{user_names_list}"
-
-    # No actualizar el botón a "Desapuntarme"
-    buttons = []
-    # if event['spots_left'] > 0 and user_id not in event['registered_users']:
-    buttons.append(InlineKeyboardButton("Apuntarme", callback_data=f'register_{event_id}'))
-
-    reply_markup = InlineKeyboardMarkup([buttons])
-    await query.edit_message_text(text, reply_markup=reply_markup)
-    
-async def agregar_admin(update: Update, context: CallbackContext):
+# Comando /inmersiones_detalles (Solo Admin)
+async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Permiso denegado")
+    sender_user_id = update.effective_user.id  # ID del usuario que envía el comando
+    bot = context.bot
+
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    user_id = update.effective_user.id
-    # Verificar que el comando es ejecutado por un administrador
-    if user_id not in ADMIN_IDS:
-        await update.message.reply_text("No tienes privilegios para ejecutar este comando.")
+    if not await is_admin(sender_user_id, chat_id, bot):
+        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
         return
-        
-    if user_id in ADMIN_IDS:
-        if len(context.args) != 1:
-            await update.message.reply_text("Uso: /agregar_admin <ID>")
-            return
+    
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
-        try:
-            new_admin_id = int(context.args[0])
-            ADMIN_IDS.add(new_admin_id)
-            await update.message.reply_text(f"Administrador con ID {new_admin_id} añadido.")
-            guardar_datos()
-        except ValueError:
-            await update.message.reply_text("Por favor, introduce un número válido de ID.")
+    async with connection.cursor() as cursor:
+        await cursor.execute("SELECT * FROM inmersiones")
+        inmersiones = await cursor.fetchall()
+    
+    if not inmersiones:
+        await update.message.reply_text('No hay inmersiones disponibles.')
     else:
-        await update.message.reply_text("No tienes permiso para usar este comando.")
+        for inmersion in inmersiones:
+            inmersion_id, nombre, plazas = inmersion
 
-async def hacerme_admin(update: Update, context: CallbackContext):
+            async with connection.cursor() as cursor:
+                # Realiza un JOIN para obtener el username y la observación
+                await cursor.execute("""
+                    SELECT u.user_id, u.username, o.observacion
+                    FROM usuarios u
+                    LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
+                    WHERE u.inmersion_id = %s
+                """, (inmersion_id, inmersion_id))
+                usuarios = await cursor.fetchall()
+            
+            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {plazas - len(usuarios)}'
+            for usuario in usuarios:
+                user_id, username, observacion = usuario
+                texto += f'\n- {username} (Usuario ID: {user_id}): {observacion if observacion else "Sin observaciones"}'
+            
+            keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            if private:
+                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup)
+            else:
+                await update.message.reply_text(texto, reply_markup=reply_markup)
+    
+    connection.close()
+
+# Comando /crear_inmersion (Solo Admin)
+async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    # Verificar que el comando es ejecutado en un grupo autorizado
-    if chat_id not in AUTHORIZED_GROUP_IDS:
-        await update.message.reply_text("Permiso denegado")
-        return
-        
     user_id = update.effective_user.id
-    
-    # Verificar si el usuario ya es administrador
-    if user_id in ADMIN_IDS:
-        await update.message.reply_text("Ya eres administrador.")
+    bot = context.bot
+
+    # Verifica si update.message es None
+    if update.message is None:
+        await context.bot.send_message(chat_id=chat_id, text='Este comando solo se puede usar en un contexto de mensaje de texto.')
+        return
+
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
         return
     
-    # Agregar al usuario a la lista de administradores
-    ADMIN_IDS.add(user_id)
+    if not await is_admin(user_id, chat_id, bot):  # Await para la verificación de administrador
+        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
+        return
     
-    # Guardar los cambios
-    guardar_datos()
+    if len(context.args) < 2:  # Ahora se requieren solo dos argumentos: nombre y plazas
+        await update.message.reply_text('Uso incorrecto. El uso correcto es: /crear_inmersion <Nombre del evento> <Plazas>')
+        return
+    
+    nombre = ' '.join(context.args[:-1])  # Toma todos los argumentos menos el último como nombre
+    plazas = context.args[-1]  # Toma el último argumento como plazas
+    
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
-    await update.message.reply_text("¡Ahora eres administrador! Borra estos mensajes para que nadie descubra tu comando secreto. :)")
+    async with connection.cursor() as cursor:
+        # Insertar la inmersión sin especificar el ID, que será generado automáticamente
+        await cursor.execute("INSERT INTO inmersiones (nombre, plazas) VALUES (%s, %s)", (nombre, plazas))
+        await connection.commit()
 
+        # Obtener el ID generado automáticamente
+        await cursor.execute("SELECT LAST_INSERT_ID()")
+        (evento_id,) = await cursor.fetchone()
+    
+    await update.message.reply_text(f'Inmersión creada: {nombre} (ID: {evento_id}, Plazas: {plazas}).')
+    connection.close()
+
+# Comando /borrar_inmersion (Solo Admin)
+async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    bot = context.bot
+
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+    
+    if not await is_admin(user_id, chat_id, bot):
+        await update.message.reply_text('No tienes autorización para usar este comando.')
+        return    
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        # Obtener todas las inmersiones con el número de usuarios apuntados
+        await cursor.execute("""
+            SELECT i.inmersion_id, i.nombre, COUNT(u.user_id) as num_usuarios
+            FROM inmersiones i
+            LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            GROUP BY i.inmersion_id, i.nombre
+        """)
+        inmersiones = await cursor.fetchall()
+
+    if not inmersiones:
+        await update.message.reply_text("No hay inmersiones disponibles para borrar.")
+        connection.close()
+        return
+
+    # Crear botones para cada inmersión con el número de usuarios apuntados
+    keyboard = [
+        [InlineKeyboardButton(f"{nombre} ({num_usuarios} usuarios)", callback_data=f'borrar_{inmersion_id}')]
+        for inmersion_id, nombre, num_usuarios in inmersiones
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Selecciona una inmersión para borrarla:", reply_markup=reply_markup)
+    
+    connection.close()
+
+async def button_borrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    inmersion_id = query.data.split('_')[1]
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Borrar la inmersión (las dependencias se manejarán por ON DELETE CASCADE en la base de datos)
+            await cursor.execute("DELETE FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
+            await connection.commit()
+
+        # Confirmar la eliminación al administrador
+        await query.edit_message_text(text=f'La inmersión seleccionada ha sido borrada.')
+    finally:
+        connection.close()
+
+# Comando /observaciones (Solo Admin)
+async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    bot = context.bot
+    user_id = update.effective_user.id
+
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+    
+    if not await is_admin(user_id, chat_id, bot):
+        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
+        return
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        # Obtener todas las inmersiones
+        await cursor.execute("SELECT inmersion_id, nombre FROM inmersiones")
+        inmersiones = await cursor.fetchall()
+
+    if not inmersiones:
+        await update.message.reply_text("No hay inmersiones disponibles.")
+        connection.close()
+        return
+
+    # Crear botones para cada inmersión
+    keyboard = [[InlineKeyboardButton(nombre, callback_data=f'select_inmersion_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("Selecciona una inmersión para ver los usuarios apuntados:", reply_markup=reply_markup)
+    
+    connection.close()
+
+async def select_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    inmersion_id = query.data.split('_')[2]
+    context.user_data['selected_inmersion'] = inmersion_id
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        # Obtener usuarios apuntados a la inmersión seleccionada
+        await cursor.execute("SELECT user_id, username FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
+        usuarios = await cursor.fetchall()
+
+    if not usuarios:
+        await query.edit_message_text("No hay usuarios apuntados a esta inmersión.")
+        connection.close()
+        return
+
+    # Crear botones para cada usuario
+    keyboard = [[InlineKeyboardButton(username, callback_data=f'select_user_{user_id}')] for user_id, username in usuarios]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await query.edit_message_text("Selecciona un usuario para agregar o modificar la observación:", reply_markup=reply_markup)
+    
+    connection.close()
+
+async def select_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.data.split('_')[2]
+    context.user_data['selected_user'] = user_id
+
+    await query.edit_message_text(f"Escribe la observación para el usuario seleccionado:")
+
+    return 'WAITING_FOR_OBSERVATION'
+
+async def handle_observation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    observacion = update.message.text
+    inmersion_id = context.user_data['selected_inmersion']
+    user_id = context.user_data['selected_user']
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Comprobar si ya existe una observación para este user_id y evento_id
+            await cursor.execute("SELECT COUNT(*) FROM observaciones WHERE inmersion_id=%s AND user_id=%s", 
+                                 (inmersion_id, user_id))
+            (count,) = await cursor.fetchone()
+
+            if count > 0:
+                # Si ya existe, actualizar la observación existente
+                await cursor.execute("UPDATE observaciones SET observacion=%s WHERE inmersion_id=%s AND user_id=%s", 
+                                     (observacion, inmersion_id, user_id))
+                await update.message.reply_text(f'Observación actualizada para el usuario en la inmersión seleccionada.')
+            else:
+                # Si no existe, insertar una nueva observación
+                await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", 
+                                     (inmersion_id, user_id, observacion))
+                await update.message.reply_text(f'Observación añadida para el usuario en la inmersión seleccionada.')
+            
+            await connection.commit()
+    finally:
+        connection.close()
+
+# Comando /eliminar_usuario (Solo Admin)
+async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    sender_user_id = update.effective_user.id  # ID del usuario que envía el comando
+    bot = context.bot
+
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+    
+    if not await is_admin(sender_user_id, chat_id, bot):
+        await update.message.reply_text('No tienes autorización para usar este comando.')
+        return
+    
+    if len(context.args) != 2:
+        await update.message.reply_text('Uso incorrecto. El uso correcto es: /eliminar_buceador <ID del evento> <ID del usuario>')
+        return
+    
+    evento_id = context.args[0]
+    user_id = context.args[1]
+    
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        await cursor.execute("DELETE FROM observaciones WHERE inmersion_id=%s AND user_id=%s", (evento_id, user_id))
+        await cursor.execute("DELETE FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (evento_id, user_id))
+        await connection.commit()
+    
+    await update.message.reply_text(f'Usuario {user_id} eliminado de la inmersión {evento_id}.')
+    connection.close()
+
+# Comando /purgar_datos (Solo Admin)
+async def purgar_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    sender_user_id = update.effective_user.id
+    bot = context.bot
+
+    if not authorized(chat_id):
+        await update.message.reply_text('No tienes autorización para usar este bot.')
+        return
+    
+    if not await is_admin(sender_user_id, chat_id, bot):
+        await update.message.reply_text('No tienes autorización para usar este comando.')
+        return
+
+    # Crear un botón de confirmación con un icono de radioactivo
+    keyboard = [
+        [InlineKeyboardButton("☢️ Sí, estoy seguro", callback_data='confirmar_purgar')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("⚠️ ¿Estás seguro de que deseas purgar todos los datos del sistema?", reply_markup=reply_markup)
+
+# Paso 2: Ejecutar la purga de datos si se confirma
+async def confirmar_purgar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            await cursor.execute("DELETE FROM observaciones")
+            await cursor.execute("DELETE FROM usuarios")
+            await cursor.execute("DELETE FROM inmersiones")
+            await connection.commit()
+
+        # Confirmar la eliminación al administrador
+        await query.edit_message_text(text='☢️ Todos los datos han sido purgados del sistema.')
+    finally:
+        connection.close()
+
+# Manejar la respuesta del botón "Apuntarse"
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    username = update.effective_user.first_name
+    inmersion_id = query.data.split('_')[1]
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Obtener el nombre y las plazas disponibles de la inmersión
+            await cursor.execute("SELECT nombre, plazas FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
+            inmersion = await cursor.fetchone()
+            
+            if inmersion is None:
+                await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.')
+                return
+
+            nombre_inmersion, plazas_disponibles = inmersion
+
+            # Verificar el número de usuarios ya registrados en la inmersión
+            await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
+            usuarios_apuntados = await cursor.fetchone()
+
+            if usuarios_apuntados[0] >= plazas_disponibles:
+                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
+                return
+
+            # Verificar si el usuario ya está registrado en la inmersión
+            await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (inmersion_id, user_id))
+            (count,) = await cursor.fetchone()
+
+            if count > 0:
+                # Si el usuario ya está registrado, enviar un mensaje de aviso
+                await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.')
+            else:
+                # Si el usuario no está registrado y hay plazas disponibles, insertar el nuevo registro
+                await cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
+                await connection.commit()
+
+                # Notificar al usuario en el chat
+                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.')
+                try:
+                    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.')
+                except Forbidden:
+                    # Si no puede enviar un mensaje privado, envía una respuesta en el grupo
+                    await query.message.reply_text(f'{username}, te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion} en este grupo.')
+
+    finally:
+        connection.close()
+
+#El usuario podrá marcar la inmersión en la que necesita equipo.
+async def alquilerequipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        # Obtener las inmersiones a las que el usuario está apuntado
+        await cursor.execute("""
+            SELECT i.inmersion_id, i.nombre
+            FROM inmersiones i
+            JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            WHERE u.user_id = %s
+        """, (user_id,))
+        inmersiones = await cursor.fetchall()
+
+    if not inmersiones:
+        await update.message.reply_text("No estás apuntado a ninguna inmersión.")
+        return
+
+    # Crear botones para cada inmersión
+    keyboard = [[InlineKeyboardButton(nombre, callback_data=f'equipo_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text("¿En qué inmersión necesitas equipo?", reply_markup=reply_markup)
+    
+    connection.close()
+
+async def button_equipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    data = query.data.split('_')
+    inmersion_id = data[1]
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Comprobar si ya existe un registro en observaciones
+            await cursor.execute("SELECT COUNT(*) FROM observaciones WHERE inmersion_id=%s AND user_id=%s", 
+                                 (inmersion_id, user_id))
+            (count,) = await cursor.fetchone()
+
+            if count > 0:
+                # Si ya existe un registro, informar al usuario
+                await query.edit_message_text(text="Ya habías informado que necesitas equipo para esta inmersión.")
+            else:
+                # Insertar en la tabla observaciones
+                await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", 
+                                     (inmersion_id, user_id, "Necesita equipo"))
+                await connection.commit()
+
+                # Confirmar la acción al usuario
+                await query.edit_message_text(text="Se ha registrado que necesitas equipo en la inmersión seleccionada.")
+    finally:
+        connection.close()
+
+# Ejecutar el bot
 def main():
+    # Crear la aplicación usando el nuevo enfoque asíncrono
     application = Application.builder().token(TOKEN).build()
-
-    application.add_handler(CommandHandler('start', start))
-    application.add_handler(CommandHandler('inmersiones', inmersiones))
-    application.add_handler(CommandHandler('crear_inmersion', crear_inmersion))
-    application.add_handler(CommandHandler('borrar_inmersion', borrar_inmersion))
-    application.add_handler(CommandHandler('eliminar_usuario', eliminar_usuario))
-    application.add_handler(CommandHandler('agregar_admin', agregar_admin))
-    application.add_handler(CommandHandler('observaciones', observaciones))
-    application.add_handler(CommandHandler('inmersiones_detalles', inmersiones_detalles))
-    application.add_handler(CommandHandler('purgar_datos', purgar_datos))
-    application.add_handler(CommandHandler('hacerme_admin', hacerme_admin))
+    
+    # Registrar los manejadores de comandos
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("ver", ver))
+    application.add_handler(CommandHandler("inmersiones", inmersiones))
     application.add_handler(CommandHandler("baja", baja))
-    application.add_handler(CallbackQueryHandler(handle_button))
+    application.add_handler(CallbackQueryHandler(button_baja, pattern="^baja_"))
+    application.add_handler(CommandHandler("inmersiones_detalles", inmersiones_detalles))
+    application.add_handler(CommandHandler("crear_inmersion", crear_inmersion))
+    application.add_handler(CommandHandler("borrar_inmersion", borrar_inmersion))
+    application.add_handler(CallbackQueryHandler(button_borrar, pattern="^borrar_"))
+    application.add_handler(CommandHandler("observaciones", observaciones))
+    application.add_handler(CallbackQueryHandler(select_inmersion, pattern="^select_inmersion_"))
+    application.add_handler(CallbackQueryHandler(select_user, pattern="^select_user_"))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_observation))
+    application.add_handler(CommandHandler("eliminar_buceador", eliminar_buceador))
+    application.add_handler(CommandHandler("purgar_datos", purgar_datos))
+    application.add_handler(CallbackQueryHandler(confirmar_purgar, pattern='^confirmar_purgar$'))
+    application.add_handler(CommandHandler("alquilerequipo", alquilerequipo))
+    application.add_handler(CallbackQueryHandler(button_equipo, pattern="^equipo_"))
+    application.add_handler(CallbackQueryHandler(button, pattern='^apuntarse_'))
 
-    # Configurar el webhook en lugar de run_polling
-    application.run_webhook(
-        listen="0.0.0.0",  # Escuchar en todas las interfaces
-        port=int(os.getenv('PORT', '8443')),  # Usar el puerto 8443 por defecto
-        url_path=TOKEN,  # Usar el token como parte de la URL del webhook
-        webhook_url=f"{WEBHOOK_URL}/{TOKEN}"  # La URL completa para el webhook
-    )
+    # Ejecutar el bot en modo polling
+    application.run_polling()
 
 if __name__ == '__main__':
     main()
