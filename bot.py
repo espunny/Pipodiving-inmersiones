@@ -188,17 +188,17 @@ async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        # Obtener las inmersiones a las que el usuario está apuntado
+        # Obtener las inmersiones a las que el usuario está apuntado y que pertenecen al grupo activo
         await cursor.execute("""
             SELECT i.inmersion_id, i.nombre
             FROM inmersiones i
             JOIN usuarios u ON i.inmersion_id = u.inmersion_id
-            WHERE u.user_id = %s
-        """, (user_id,))
+            WHERE u.user_id = %s AND i.active_group = %s
+        """, (user_id, chat_id))
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No estás apuntado a ninguna inmersión.", disable_notification=True)
+        await update.message.reply_text("No estás apuntado a ninguna inmersión en este grupo.", disable_notification=True)
         connection.close()
         return
 
