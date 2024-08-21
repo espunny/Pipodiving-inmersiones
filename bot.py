@@ -158,41 +158,88 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
     async with connection.cursor() as cursor:
         # Filtrar las inmersiones por el grupo activo (active_group)
         await cursor.execute("""
-            SELECT inmersion_id, nombre, plazas 
-            FROM inmersiones 
-            WHERE active_group = %s
+            SELECT i.inmersion_id, i.nombre, i.plazas, COUNT(u.user_id) AS inscritos
+            FROM inmersiones i
+            LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            WHERE i.active_group = %s
+            GROUP BY i.inmersion_id, i.nombre, i.plazas
         """, (chat_id,))
         inmersiones = await cursor.fetchall()
     
     if not inmersiones:
         await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
     else:
+        keyboard = []
         for inmersion in inmersiones:
-            inmersion_id, nombre, plazas = inmersion
-
-            async with connection.cursor() as cursor:
-                # Realiza un JOIN para obtener el username y la observación, filtrado por inmersion_id y el grupo activo
-                await cursor.execute("""
-                    SELECT u.user_id, u.username, o.observacion
-                    FROM usuarios u
-                    LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
-                    WHERE u.inmersion_id = %s
-                """, (inmersion_id, inmersion_id))
-                usuarios = await cursor.fetchall()
-            
-            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {plazas - len(usuarios)}'
-            for usuario in usuarios:
-                user_id, username, observacion = usuario
-                texto += f'\n- {username}: {observacion if observacion else "Sin observaciones"}'
-            
-            keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
-            else:
-                await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
+            inmersion_id, nombre, plazas, inscritos = inmersion
+            plazas_restantes = max(plazas - inscritos, 0)
+            button_text = f"{nombre} - {plazas_restantes} plazas"
+            keyboard.append([InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if private:
+            await context.bot.send_message(chat_id=update.effective_user.id, text="Selecciona una inmersión:", reply_markup=reply_markup, disable_notification=True)
+        else:
+            await update.message.reply_text("Selecciona una inmersión:", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
+
+# Manejador de la interacción con el botón "Apuntarse"
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = update.effective_user.id
+    username = update.effective_user.first_name
+    inmersion_id = query.data.split('_')[1]
+
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    try:
+        async with connection.cursor() as cursor:
+            # Obtener el nombre y las plazas disponibles de la inmersión
+            await cursor.execute("SELECT nombre, plazas FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
+            inmersion = await cursor.fetchone()
+            
+            if inmersion is None:
+                await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.')
+                return
+
+            nombre_inmersion, plazas_disponibles = inmersion
+
+            # Verificar el número de usuarios ya registrados en la inmersión
+            await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
+            usuarios_apuntados = await cursor.fetchone()
+
+            if usuarios_apuntados[0] >= plazas_disponibles:
+                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
+                return
+
+            # Verificar si el usuario ya está registrado en la inmersión
+            await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (inmersion_id, user_id))
+            (count,) = await cursor.fetchone()
+
+            if count > 0:
+                # Si el usuario ya está registrado, enviar un mensaje de aviso
+                await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.')
+            else:
+                # Si el usuario no está registrado y hay plazas disponibles, insertar el nuevo registro
+                await cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
+                await connection.commit()
+
+                # Notificar al usuario en el chat
+                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.')
+                try:
+                    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.', disable_notification=True)
+                except Forbidden:
+                    # Si no puede enviar un mensaje privado, envía una respuesta en el grupo
+                    await query.message.reply_text(f'{username}, te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion} en este grupo.', disable_notification=True)
+                # Llamando a /ver y anclando la nueva lista
+                await ver(update, context)
+    finally:
+        connection.close()
+
 
 # Comando /baja
 async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -648,61 +695,6 @@ async def confirmar_purgar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         connection.close()
 
-# Manejar la respuesta del botón "Apuntarse"
-
-async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    user_id = update.effective_user.id
-    username = update.effective_user.first_name
-    inmersion_id = query.data.split('_')[1]
-
-    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
-
-    try:
-        async with connection.cursor() as cursor:
-            # Obtener el nombre y las plazas disponibles de la inmersión
-            await cursor.execute("SELECT nombre, plazas FROM inmersiones WHERE inmersion_id=%s", (inmersion_id,))
-            inmersion = await cursor.fetchone()
-            
-            if inmersion is None:
-                await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.')
-                return
-
-            nombre_inmersion, plazas_disponibles = inmersion
-
-            # Verificar el número de usuarios ya registrados en la inmersión
-            await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
-            usuarios_apuntados = await cursor.fetchone()
-
-            if usuarios_apuntados[0] >= plazas_disponibles:
-                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
-                return
-
-            # Verificar si el usuario ya está registrado en la inmersión
-            await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (inmersion_id, user_id))
-            (count,) = await cursor.fetchone()
-
-            if count > 0:
-                # Si el usuario ya está registrado, enviar un mensaje de aviso
-                await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.')
-            else:
-                # Si el usuario no está registrado y hay plazas disponibles, insertar el nuevo registro
-                await cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
-                await connection.commit()
-
-                # Notificar al usuario en el chat
-                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.')
-                try:
-                    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.', disable_notification=True)
-                except Forbidden:
-                    # Si no puede enviar un mensaje privado, envía una respuesta en el grupo
-                    await query.message.reply_text(f'{username}, te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion} en este grupo.', disable_notification=True)
-                # Llamando a /ver y anclando la nueva lista
-                await ver(update, context)
-    finally:
-        connection.close()
 
 # El usuario podrá marcar la inmersión en la que necesita equipo.
 async def alquilerequipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
