@@ -211,11 +211,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Verificar el número de usuarios ya registrados en la inmersión
             await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
             usuarios_apuntados = await cursor.fetchone()
+            usuarios_apuntados = usuarios_apuntados[0]
 
             # Calcular plazas disponibles considerando las 2 reservas
-            plazas_restantes = max(plazas_disponibles - usuarios_apuntados[0] - 2, 0)
+            plazas_disponibles_mostradas = max(plazas_disponibles - usuarios_apuntados - 2, 0)
 
-            if plazas_restantes <= 0:
+            if plazas_disponibles_mostradas <= 0:
                 await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
                 return
 
@@ -242,7 +243,6 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await ver(update, context)
     finally:
         connection.close()
-
 
 # Comando /baja
 async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
