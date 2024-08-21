@@ -313,13 +313,12 @@ async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
     sender_user_id = update.effective_user.id  # ID del usuario que envía el comando
-    bot = context.bot
 
     if not authorized(chat_id):
-        await update.message.reply_text(BOT_NO_AUTORIZADO)
+        await update.message.reply_text(BOT_NO_AUTORIZADO, disable_notification=True)
         return
     
-    if not await is_admin(sender_user_id, chat_id, bot):
+    if not await is_admin(sender_user_id, chat_id, context.bot):
         await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
@@ -336,34 +335,40 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
     
     if not inmersiones:
         await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
+        connection.close()
+        return
+
+    # Variable para almacenar todo el mensaje
+    texto_completo = ""
+
+    for inmersion in inmersiones:
+        inmersion_id, nombre, plazas = inmersion
+
+        async with connection.cursor() as cursor:
+            # Obtener la lista de usuarios apuntados a la inmersión junto con sus observaciones
+            await cursor.execute("""
+                SELECT u.username, o.observacion
+                FROM usuarios u
+                LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
+                WHERE u.inmersion_id = %s
+            """, (inmersion_id, inmersion_id))
+            usuarios = await cursor.fetchall()
+
+        # Construir el texto de la inmersión
+        texto_completo += f'**{nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
+        for username, observacion in usuarios:
+            texto_completo += f'- {username}: {observacion if observacion else "Sin observaciones"}\n'
+        
+        texto_completo += "\n---\n"
+
+    # Enviar el mensaje completo en modo silencioso
+    if private:
+        await context.bot.send_message(chat_id=update.effective_user.id, text=texto_completo.strip(), disable_notification=True)
     else:
-        for inmersion in inmersiones:
-            inmersion_id, nombre, plazas = inmersion
+        await update.message.reply_text(texto_completo.strip(), disable_notification=True)
 
-            async with connection.cursor() as cursor:
-                # Realiza un JOIN para obtener el username y la observación, filtrado por inmersion_id
-                await cursor.execute("""
-                    SELECT u.user_id, u.username, o.observacion
-                    FROM usuarios u
-                    LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
-                    WHERE u.inmersion_id = %s
-                """, (inmersion_id, inmersion_id))
-                usuarios = await cursor.fetchall()
-            
-            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {plazas - len(usuarios)}'
-            for usuario in usuarios:
-                user_id, username, observacion = usuario
-                texto += f'\n- {username} (Usuario ID: {user_id}): {observacion if observacion else "Sin observaciones"}'
-            
-            keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
-            else:
-                await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
-    
     connection.close()
-
+    
 # Comando /crear_inmersion (Solo Admin)
 async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
