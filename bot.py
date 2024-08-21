@@ -212,6 +212,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
             usuarios_apuntados = await cursor.fetchone()
 
+            # Si el número de usuarios apuntados es mayor o igual a las plazas disponibles, no hay plazas
             if usuarios_apuntados[0] >= plazas_disponibles:
                 await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
                 return
@@ -347,7 +348,7 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
         async with connection.cursor() as cursor:
             # Obtener la lista de usuarios apuntados a la inmersión junto con sus observaciones
             await cursor.execute("""
-                SELECT u.username, o.observacion
+                SELECT u.user_id, u.username, o.observacion
                 FROM usuarios u
                 LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
                 WHERE u.inmersion_id = %s
@@ -356,8 +357,8 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
 
         # Construir el texto de la inmersión
         texto_completo += f'**{nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
-        for username, observacion in usuarios:
-            texto_completo += f'- {username}: {observacion if observacion else "Sin observaciones"}\n'
+        for user_id, username, observacion in usuarios:
+            texto_completo += f'- {username} (ID: {user_id}): {observacion if observacion else "Sin observaciones"}\n'
         
         texto_completo += "\n---\n"
 
@@ -368,7 +369,7 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(texto_completo.strip(), disable_notification=True)
 
     connection.close()
-    
+
 # Comando /crear_inmersion (Solo Admin)
 async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
