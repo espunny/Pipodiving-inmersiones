@@ -146,7 +146,7 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
         connection.close()
 
 
-# Comando /inmersiones con texto encima del botón y emoji de buceador
+# Comando /inmersiones con texto y botón enviados con una pausa de 1 segundo
 async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
@@ -171,10 +171,12 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
     else:
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas, inscritos = inmersion
-            plazas_restantes = max(plazas - inscritos, 0)
+
+            # Calcular las plazas restantes descontando las dos plazas de reserva
+            plazas_restantes_mostradas = max(plazas - inscritos - 2, 0)
 
             # Texto para la inmersión
-            texto_inmersion = f"**{nombre}**\nPlazas restantes: {plazas_restantes}\n"
+            texto_inmersion = f"**{nombre}**\nPlazas restantes: {plazas_restantes_mostradas}\n"
             
             # Enviar el texto de la inmersión
             if private:
@@ -182,16 +184,20 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
             else:
                 await update.message.reply_text(texto_inmersion.strip(), parse_mode='Markdown', disable_notification=True)
 
-            # Crear el botón de inscripción con el emoji de buceador
-            button_text = f"🤿 Apuntarse - {plazas_restantes} plazas"
-            keyboard = [[InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            # Enviar el botón debajo del texto
-            if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text="", reply_markup=reply_markup, disable_notification=True)
-            else:
-                await update.message.reply_text(text="", reply_markup=reply_markup, disable_notification=True)
+            # Crear el botón de inscripción con el emoji de buceador si hay plazas disponibles
+            if inscritos < plazas:
+                button_text = f"🤿 Apuntarse - {plazas_restantes_mostradas} plazas"
+                keyboard = [[InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')]]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                # Enviar el botón debajo del texto
+                if private:
+                    await context.bot.send_message(chat_id=update.effective_user.id, text="", reply_markup=reply_markup, disable_notification=True)
+                else:
+                    await update.message.reply_text(text="", reply_markup=reply_markup, disable_notification=True)
+
+            # Pausa de 1 segundo entre mensajes
+            await asyncio.sleep(1)
     
     connection.close()
 
@@ -224,14 +230,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             usuarios_apuntados = usuarios_apuntados[0]
 
             # Calcular plazas restantes sin descontar las plazas de reserva
-            plazas_restantes = plazas_disponibles - usuarios_apuntados
+            plazas_restantes = max(plazas_disponibles - usuarios_apuntados, 0)
 
-            if plazas_restantes < 0:
-                # Si las plazas regulares están llenas, pero aún hay espacio en reserva, permitir el registro
-                plazas_restantes = 0  # Mostrar 0 plazas regulares restantes, pero permitir inscribirse
-            elif plazas_restantes == 0:
-                # Si no hay plazas regulares, indicar al usuario que está en reserva
-                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion} en modo reserva.')
+            if plazas_restantes <= 0:
+                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
                 return
 
             # Verificar si el usuario ya está registrado en la inmersión
