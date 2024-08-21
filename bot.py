@@ -146,7 +146,7 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
         connection.close()
 
 
-# Comando /inmersiones con ícono de buceador en los botones
+# Comando /inmersiones con texto encima del botón y emoji de buceador
 async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
@@ -169,21 +169,29 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
     if not inmersiones:
         await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
     else:
-        texto_inmersiones = "Selecciona una inmersión:\n\n"
-        keyboard = []
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas, inscritos = inmersion
             plazas_restantes = max(plazas - inscritos, 0)
-            texto_inmersiones += f"**{nombre}**\nPlazas restantes: {plazas_restantes}\n\n"
+
+            # Texto para la inmersión
+            texto_inmersion = f"**{nombre}**\nPlazas restantes: {plazas_restantes}\n"
+            
+            # Enviar el texto de la inmersión
+            if private:
+                await context.bot.send_message(chat_id=update.effective_user.id, text=texto_inmersion.strip(), parse_mode='Markdown', disable_notification=True)
+            else:
+                await update.message.reply_text(texto_inmersion.strip(), parse_mode='Markdown', disable_notification=True)
+
+            # Crear el botón de inscripción con el emoji de buceador
             button_text = f"🤿 Apuntarse - {plazas_restantes} plazas"
-            keyboard.append([InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        if private:
-            await context.bot.send_message(chat_id=update.effective_user.id, text=texto_inmersiones.strip(), parse_mode='Markdown', reply_markup=reply_markup, disable_notification=True)
-        else:
-            await update.message.reply_text(texto_inmersiones.strip(), parse_mode='Markdown', reply_markup=reply_markup, disable_notification=True)
+            keyboard = [[InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Enviar el botón debajo del texto
+            if private:
+                await context.bot.send_message(chat_id=update.effective_user.id, text="", reply_markup=reply_markup, disable_notification=True)
+            else:
+                await update.message.reply_text(text="", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -249,7 +257,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await ver(update, context)
     finally:
         connection.close()
-        
+
 # Comando /baja
 async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
