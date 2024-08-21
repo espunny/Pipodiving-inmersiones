@@ -369,8 +369,8 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
             """, (inmersion_id, inmersion_id))
             usuarios = await cursor.fetchall()
 
-        # Construir el texto de la inmersión
-        texto_completo += f'**{nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
+        # Construir el texto de la inmersión incluyendo el ID
+        texto_completo += f'**ID Inmersión: {inmersion_id} - {nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
         for user_id, username, observacion in usuarios:
             texto_completo += f'- {username} (ID: {user_id}): {observacion if observacion else "Sin observaciones"}\n'
         
