@@ -99,9 +99,27 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
                     """, (inmersion_id,))
                     usuarios = await cursor.fetchall()
 
+                # Determinar el número de plazas restantes, considerando las 2 reservas
+                plazas_disponibles = plazas - len(usuarios)
+                plazas_disponibles_mostradas = max(plazas_disponibles, 0) - 2
+                plazas_disponibles_mostradas = max(plazas_disponibles_mostradas, 0)
+
                 # Crear el texto para esta inmersión
-                texto = f'**{nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
-                texto += '\n'.join(f'- {username}' for (username,) in usuarios)
+                texto = f'**{nombre}**\nPlazas restantes: {plazas_disponibles_mostradas}'
+
+                if len(usuarios) > plazas:
+                    texto += " (2 en reserva)\n"
+                else:
+                    texto += "\n"
+
+                # Crear la lista de usuarios con marcadores de reserva si es necesario
+                for i, (username,) in enumerate(usuarios):
+                    if i == plazas - 2:
+                        texto += f'- {username} (Reserva 1)\n'
+                    elif i == plazas - 1:
+                        texto += f'- {username} (Reserva 2)\n'
+                    else:
+                        texto += f'- {username}\n'
 
                 # Agregar el texto al mensaje completo con un mayor espacio entre inmersiones
                 texto_completo += texto + "\n---\n"
