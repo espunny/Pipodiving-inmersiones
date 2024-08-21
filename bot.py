@@ -212,8 +212,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await cursor.execute("SELECT COUNT(*) FROM usuarios WHERE inmersion_id=%s", (inmersion_id,))
             usuarios_apuntados = await cursor.fetchone()
 
-            # Si el número de usuarios apuntados es mayor o igual a las plazas disponibles, no hay plazas
-            if usuarios_apuntados[0] >= plazas_disponibles:
+            # Calcular plazas disponibles considerando las 2 reservas
+            plazas_restantes = max(plazas_disponibles - usuarios_apuntados[0] - 2, 0)
+
+            if plazas_restantes <= 0:
                 await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
                 return
 
