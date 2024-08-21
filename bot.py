@@ -273,6 +273,7 @@ async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         connection.close()
 
+
 # Comando /inmersiones_detalles (Solo Admin)
 async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
@@ -297,7 +298,7 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
             WHERE active_group = %s
         """, (chat_id,))
         inmersiones = await cursor.fetchall()
-    
+
     if not inmersiones:
         await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
         connection.close()
@@ -307,14 +308,17 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
     tasks = []
     for inmersion in inmersiones:
         inmersion_id, nombre, plazas = inmersion
-        tasks.append(fetch_and_send_inmersion_detalles(context, update, chat_id, inmersion_id, nombre, plazas, private, connection))
+        tasks.append(fetch_and_send_inmersion_detalles(context, update, chat_id, inmersion_id, nombre, plazas, private))
 
     # Ejecutar todas las tareas en paralelo
     await asyncio.gather(*tasks)
     
     connection.close()
 
-async def fetch_and_send_inmersion_detalles(context, update, chat_id, inmersion_id, nombre, plazas, private, connection):
+async def fetch_and_send_inmersion_detalles(context, update, chat_id, inmersion_id, nombre, plazas, private):
+    # Crear una nueva conexión para cada tarea
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
     async with connection.cursor() as cursor:
         # Realiza un JOIN para obtener el username y la observación, filtrado por inmersion_id
         await cursor.execute("""
@@ -337,6 +341,8 @@ async def fetch_and_send_inmersion_detalles(context, update, chat_id, inmersion_
         await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
     else:
         await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
+
+    connection.close()
 
 # Comando /crear_inmersion (Solo Admin)
 async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
