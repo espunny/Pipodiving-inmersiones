@@ -166,33 +166,44 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
     
     if not inmersiones:
         await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
-    else:
-        for inmersion in inmersiones:
-            inmersion_id, nombre, plazas = inmersion
+        connection.close()
+        return
 
-            async with connection.cursor() as cursor:
-                # Realiza un JOIN para obtener el username y la observación, filtrado por inmersion_id y el grupo activo
-                await cursor.execute("""
-                    SELECT u.user_id, u.username, o.observacion
-                    FROM usuarios u
-                    LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
-                    WHERE u.inmersion_id = %s
-                """, (inmersion_id, inmersion_id))
-                usuarios = await cursor.fetchall()
-            
-            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {(plazas - len(usuarios))-2}'
-            for usuario in usuarios:
-                user_id, username, observacion = usuario
-                texto += f'\n- {username}: {observacion if observacion else "Sin observaciones"}'
-            
-            keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
-            else:
-                await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
+    # Preparar las tareas para ejecutar en paralelo
+    tasks = []
+    for inmersion in inmersiones:
+        inmersion_id, nombre, plazas = inmersion
+
+        tasks.append(fetch_and_send_inmersion(context, update, chat_id, inmersion_id, nombre, plazas, private, connection))
+
+    # Ejecutar todas las tareas en paralelo
+    await asyncio.gather(*tasks)
     
     connection.close()
+
+async def fetch_and_send_inmersion(context, update, chat_id, inmersion_id, nombre, plazas, private, connection):
+    async with connection.cursor() as cursor:
+        # Realiza un JOIN para obtener el username y la observación, filtrado por inmersion_id y el grupo activo
+        await cursor.execute("""
+            SELECT u.user_id, u.username, o.observacion
+            FROM usuarios u
+            LEFT JOIN observaciones o ON u.user_id = o.user_id AND o.inmersion_id = %s
+            WHERE u.inmersion_id = %s
+        """, (inmersion_id, inmersion_id))
+        usuarios = await cursor.fetchall()
+
+    texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {(plazas - len(usuarios))-2}'
+    for usuario in usuarios:
+        user_id, username, observacion = usuario
+        texto += f'\n- {username}: {observacion if observacion else "Sin observaciones"}'
+    
+    keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    if private:
+        await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
+    else:
+        await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
 
 # Comando /baja
 async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
