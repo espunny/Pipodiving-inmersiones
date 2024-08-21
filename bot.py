@@ -350,11 +350,14 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
+        # Plazas de reserva
+        plazas = int(plazas)
+        plazas_con_reserva = plazas + 2
         # Insertar la inmersión con el campo active_group y el timestamp
         await cursor.execute("""
             INSERT INTO inmersiones (nombre, plazas, active_group, created_at) 
             VALUES (%s, %s, %s, %s)
-        """, (nombre, plazas+2, chat_id, timestamp))
+        """, (nombre, plazas_con_reserva, chat_id, timestamp))
         await connection.commit()
 
         # Obtener el ID generado automáticamente
