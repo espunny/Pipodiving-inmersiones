@@ -146,7 +146,7 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
         connection.close()
 
 
-# Comando /inmersiones
+# Comando /inmersiones con botones más grandes
 async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
@@ -172,11 +172,12 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
         keyboard = []
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas, inscritos = inmersion
-            plazas_restantes = max(plazas - inscritos, 0)
-            button_text = f"{nombre} - {plazas_restantes} plazas"
+            plazas_restantes = max(plazas - inscritos, 0) - 2
+            plazas_restantes = max(plazas_restantes, 0)
+            button_text = f"{nombre}\n{plazas_restantes} plazas restantes"
             keyboard.append([InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')])
         
-        reply_markup = InlineKeyboardMarkup(keyboard)
+        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True)
         
         if private:
             await context.bot.send_message(chat_id=update.effective_user.id, text="Selecciona una inmersión:", reply_markup=reply_markup, disable_notification=True)
@@ -213,8 +214,9 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             usuarios_apuntados = await cursor.fetchone()
             usuarios_apuntados = usuarios_apuntados[0]
 
-            # Calcular plazas disponibles considerando las 2 reservas
-            plazas_disponibles_mostradas = max(plazas_disponibles - usuarios_apuntados - 2, 0)
+            # Calcular plazas restantes como en el comando /ver
+            plazas_disponibles_mostradas = max(plazas_disponibles - usuarios_apuntados, 0) - 2
+            plazas_disponibles_mostradas = max(plazas_disponibles_mostradas, 0)
 
             if plazas_disponibles_mostradas <= 0:
                 await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
