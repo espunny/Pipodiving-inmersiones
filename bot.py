@@ -180,7 +180,7 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
                 """, (inmersion_id, inmersion_id))
                 usuarios = await cursor.fetchall()
             
-            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {plazas - len(usuarios)}'
+            texto = f'ID Inmersión: {inmersion_id}\n{nombre}\nPlazas restantes: {(plazas - len(usuarios))-2}'
             for usuario in usuarios:
                 user_id, username, observacion = usuario
                 texto += f'\n- {username}: {observacion if observacion else "Sin observaciones"}'
@@ -318,7 +318,6 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
     connection.close()
 
 # Comando /crear_inmersion (Solo Admin)
-
 async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -344,6 +343,17 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = ' '.join(context.args[:-1])  # Toma todos los argumentos menos el último como nombre
     plazas = context.args[-1]  # Toma el último argumento como plazas
     
+    try:
+        plazas = int(plazas)
+    except ValueError:
+        await update.message.reply_text('El número de plazas debe ser un número entero.', disable_notification=True)
+        return
+    
+    # Verificar que el número de plazas no sea menor a 2
+    if plazas < 2:
+        await update.message.reply_text('No se puede crear una inmersión con menos de 2 plazas.', disable_notification=True)
+        return
+    
     # Obtener el timestamp actual
     timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
@@ -351,7 +361,6 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async with connection.cursor() as cursor:
         # Plazas de reserva
-        plazas = int(plazas)
         plazas_con_reserva = plazas + 2
         # Insertar la inmersión con el campo active_group y el timestamp
         await cursor.execute("""
