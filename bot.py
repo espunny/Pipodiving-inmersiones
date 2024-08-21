@@ -1,9 +1,13 @@
 
-# Versión con bases de datos
-# La base de datos estará en un servidor MariaDb
+# Versión con bases de datos.
+# Versión multiclub Nuevos campos 'active_group' 'created_at'
+# Versión que permitirá eliminar las inmersiones por fecha.
+# Todos los mensajes se envían en modo silencioso.
+# La base de datos estará en un servidor MariaDb.
 import os
 import aiomysql
 import pymysql
+import datetime
 import asyncio
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -24,6 +28,10 @@ MYSQL_DATABASE = os.getenv('MYSQL_DATABASE')
 AUTHORIZED_GROUP_ID = os.getenv('AUTHORIZED_GROUP_ID')
 AUTHORIZED_CHAT_ID = os.getenv('AUTHORIZED_CHAT_ID')
 
+# Mensajes
+BOT_NO_AUTORIZADO = 'Para autorizar este bot, escribe el comando /start y envía el identificador que aparece en un mensaje privado a: @t850model102'
+NO_ADMINISTRADOR = 'Solamente un administrador del grupo puede usar este comando'
+
 # Saber si un usuario es administrador
 async def is_admin(user_id, chat_id, bot):
     chat_administrators = await bot.get_chat_administrators(chat_id)  # Await la coroutine
@@ -38,87 +46,114 @@ def connect_db():
 
 # Verificación de autorización
 def authorized(chat_id):
-    return str(chat_id) == AUTHORIZED_GROUP_ID or str(chat_id) in AUTHORIZED_CHAT_ID.split(',')
+    # Convierte AUTHORIZED_GROUP_ID en una lista de IDs, eliminando espacios en blanco
+    authorized_ids = [id.strip() for id in AUTHORIZED_GROUP_ID.split(',')]
+    return str(chat_id) in authorized_ids
 
 # Función de inicio
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    await update.message.reply_text(f'Bienvenido! Tu chat_id es {chat_id} tu usuario es:{user_id} . {MYSQL_USER}')
+    await update.message.reply_text(f'El ID de tu grupo es {chat_id} y tu usuario es:{user_id} . {MYSQL_USER}')
 
 # Comando /ver
 async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        if update.message:
+            await update.message.reply_text(BOT_NO_AUTORIZADO)
+        elif update.callback_query:
+            await update.callback_query.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
-    async with connection.cursor() as cursor:
-        await cursor.execute("SELECT inmersion_id, nombre, plazas FROM inmersiones")
-        inmersiones = await cursor.fetchall()
-    
-    if not inmersiones:
-        await update.message.reply_text('No hay inmersiones disponibles.')
-    else:
-        # Variable para almacenar todo el mensaje
-        texto_completo = ""
-
-        for inmersion in inmersiones:
-            inmersion_id, nombre, plazas = inmersion
-
-            async with connection.cursor() as cursor:
-                # Obtener la lista de usuarios apuntados a la inmersión
-                await cursor.execute("""
-                    SELECT username
-                    FROM usuarios
-                    WHERE inmersion_id = %s
-                """, (inmersion_id,))
-                usuarios = await cursor.fetchall()
-
-            # Crear el texto para esta inmersión
-            texto = f'**{nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
-            texto += '\n'.join(f'- {username}' for (username,) in usuarios)
-
-            # Agregar el texto al mensaje completo con un mayor espacio entre inmersiones
-            texto_completo += texto + "\n---\n"
-
-        # Añadir el mensaje informativo al final
-        texto_completo += ("Para apuntarte, usa el comando /inmersiones, "
-                           "para darte de baja, utiliza el comando /baja y "
-                           "para informar de que necesitas equipo, puedes usar /alquilerequipo.")
-
-        # Enviar todo el mensaje en un solo envío
-        if private:
-            await context.bot.send_message(chat_id=update.effective_user.id, text=texto_completo.strip(), parse_mode='Markdown')
+    try:
+        async with connection.cursor() as cursor:
+            # Filtrar las inmersiones por el grupo activo (active_group)
+            await cursor.execute("""
+                SELECT inmersion_id, nombre, plazas 
+                FROM inmersiones 
+                WHERE active_group = %s
+            """, (chat_id,))
+            inmersiones = await cursor.fetchall()
+        
+        if not inmersiones:
+            if update.message:
+                message = await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
+            elif update.callback_query:
+                message = await update.callback_query.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
         else:
-            await update.message.reply_text(texto_completo.strip(), parse_mode='Markdown')
-    
-    connection.close()
+            # Variable para almacenar todo el mensaje
+            texto_completo = ""
+
+            for inmersion in inmersiones:
+                inmersion_id, nombre, plazas = inmersion
+
+                async with connection.cursor() as cursor:
+                    # Obtener la lista de usuarios apuntados a la inmersión
+                    await cursor.execute("""
+                        SELECT username
+                        FROM usuarios
+                        WHERE inmersion_id = %s
+                    """, (inmersion_id,))
+                    usuarios = await cursor.fetchall()
+
+                # Crear el texto para esta inmersión
+                texto = f'**{nombre}**\nPlazas restantes: {plazas - len(usuarios)}\n'
+                texto += '\n'.join(f'- {username}' for (username,) in usuarios)
+
+                # Agregar el texto al mensaje completo con un mayor espacio entre inmersiones
+                texto_completo += texto + "\n---\n"
+
+            # Añadir el mensaje informativo al final
+            texto_completo += ("Para apuntarte, usa el comando /inmersiones, "
+                               "para darte de baja, utiliza el comando /baja y "
+                               "para informar de que necesitas equipo, puedes usar /alquilerequipo.")
+
+            # Enviar todo el mensaje en un solo envío
+            if private:
+                message = await context.bot.send_message(chat_id=update.effective_user.id, text=texto_completo.strip(), parse_mode='Markdown', disable_notification=True)
+            else:
+                if update.message:
+                    message = await update.message.reply_text(texto_completo.strip(), parse_mode='Markdown', disable_notification=True)
+                elif update.callback_query:
+                    message = await update.callback_query.message.reply_text(texto_completo.strip(), parse_mode='Markdown', disable_notification=True)
+
+        # Anclar el mensaje si no es privado
+        if not private and message:
+            await context.bot.pin_chat_message(chat_id=chat_id, message_id=message.message_id, disable_notification=True)
+        
+    finally:
+        connection.close()
 
 
 # Comando /inmersiones
 async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        await update.message.reply_text(BOT_NO_AUTORIZADO, disable_notification=True)
         return
     
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        await cursor.execute("SELECT * FROM inmersiones")
+        # Filtrar las inmersiones por el grupo activo (active_group)
+        await cursor.execute("""
+            SELECT inmersion_id, nombre, plazas 
+            FROM inmersiones 
+            WHERE active_group = %s
+        """, (chat_id,))
         inmersiones = await cursor.fetchall()
     
     if not inmersiones:
-        await update.message.reply_text('No hay inmersiones disponibles.')
+        await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
     else:
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas = inmersion
 
             async with connection.cursor() as cursor:
-                # Realiza un JOIN para obtener el username y la observación
+                # Realiza un JOIN para obtener el username y la observación, filtrado por inmersion_id y el grupo activo
                 await cursor.execute("""
                     SELECT u.user_id, u.username, o.observacion
                     FROM usuarios u
@@ -135,9 +170,9 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
             keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup)
+                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
             else:
-                await update.message.reply_text(texto, reply_markup=reply_markup)
+                await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -145,7 +180,7 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
 async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
 
     user_id = update.effective_user.id
@@ -163,7 +198,7 @@ async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No estás apuntado a ninguna inmersión.")
+        await update.message.reply_text("No estás apuntado a ninguna inmersión.", disable_notification=True)
         connection.close()
         return
 
@@ -171,7 +206,7 @@ async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(nombre, callback_data=f'baja_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Selecciona la inmersión de la que deseas darte de baja:", reply_markup=reply_markup)
+    await update.message.reply_text("Selecciona la inmersión de la que deseas darte de baja:", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -204,6 +239,8 @@ async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Confirmar la baja al usuario
         await query.edit_message_text(text=f'Te has dado de baja de la inmersión {nombre_inmersion}.')
+        # Llamando a /ver y anclando la nueva lista
+        await ver(update, context)
     finally:
         connection.close()
 
@@ -214,27 +251,32 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
     bot = context.bot
 
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
     if not await is_admin(sender_user_id, chat_id, bot):
-        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        await cursor.execute("SELECT * FROM inmersiones")
+        # Filtrar las inmersiones por el grupo activo (active_group)
+        await cursor.execute("""
+            SELECT inmersion_id, nombre, plazas 
+            FROM inmersiones 
+            WHERE active_group = %s
+        """, (chat_id,))
         inmersiones = await cursor.fetchall()
     
     if not inmersiones:
-        await update.message.reply_text('No hay inmersiones disponibles.')
+        await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
     else:
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas = inmersion
 
             async with connection.cursor() as cursor:
-                # Realiza un JOIN para obtener el username y la observación
+                # Realiza un JOIN para obtener el username y la observación, filtrado por inmersion_id
                 await cursor.execute("""
                     SELECT u.user_id, u.username, o.observacion
                     FROM usuarios u
@@ -251,13 +293,14 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
             keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup)
+                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
             else:
-                await update.message.reply_text(texto, reply_markup=reply_markup)
+                await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
 # Comando /crear_inmersion (Solo Admin)
+
 async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -265,36 +308,44 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Verifica si update.message es None
     if update.message is None:
-        await context.bot.send_message(chat_id=chat_id, text='Este comando solo se puede usar en un contexto de mensaje de texto.')
+        await context.bot.send_message(chat_id=chat_id, text='Este comando solo se puede usar en un contexto de mensaje de texto.', disable_notification=True)
         return
 
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
     if not await is_admin(user_id, chat_id, bot):  # Await para la verificación de administrador
-        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
     if len(context.args) < 2:  # Ahora se requieren solo dos argumentos: nombre y plazas
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /crear_inmersion <Nombre del evento> <Plazas>')
+        await update.message.reply_text('Uso incorrecto. El uso correcto es: /crear_inmersion <Nombre del evento> <Plazas>', disable_notification=True)
         return
     
     nombre = ' '.join(context.args[:-1])  # Toma todos los argumentos menos el último como nombre
     plazas = context.args[-1]  # Toma el último argumento como plazas
     
+    # Obtener el timestamp actual
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        # Insertar la inmersión sin especificar el ID, que será generado automáticamente
-        await cursor.execute("INSERT INTO inmersiones (nombre, plazas) VALUES (%s, %s)", (nombre, plazas))
+        # Insertar la inmersión con el campo active_group y el timestamp
+        await cursor.execute("""
+            INSERT INTO inmersiones (nombre, plazas, active_group, created_at) 
+            VALUES (%s, %s, %s, %s)
+        """, (nombre, plazas, chat_id, timestamp))
         await connection.commit()
 
         # Obtener el ID generado automáticamente
         await cursor.execute("SELECT LAST_INSERT_ID()")
         (evento_id,) = await cursor.fetchone()
     
-    await update.message.reply_text(f'Inmersión creada: {nombre} (ID: {evento_id}, Plazas: {plazas}).')
+    await update.message.reply_text(f'Inmersión creada: {nombre} (ID: {evento_id}, Plazas: {plazas}, Creada en: {timestamp}).', disable_notification=True)
+    # Llamando a /ver y anclando la nueva lista
+    await ver(update, context)
     connection.close()
 
 # Comando /borrar_inmersion (Solo Admin)
@@ -304,27 +355,28 @@ async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot = context.bot
 
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
     if not await is_admin(user_id, chat_id, bot):
-        await update.message.reply_text('No tienes autorización para usar este comando.')
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return    
 
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        # Obtener todas las inmersiones con el número de usuarios apuntados
+        # Filtrar las inmersiones por el grupo activo (active_group) y obtener el número de usuarios apuntados
         await cursor.execute("""
             SELECT i.inmersion_id, i.nombre, COUNT(u.user_id) as num_usuarios
             FROM inmersiones i
             LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            WHERE i.active_group = %s
             GROUP BY i.inmersion_id, i.nombre
-        """)
+        """, (chat_id,))
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No hay inmersiones disponibles para borrar.")
+        await update.message.reply_text("No hay inmersiones disponibles para borrar.", disable_notification=True)
         connection.close()
         return
 
@@ -335,7 +387,7 @@ async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Selecciona una inmersión para borrarla:", reply_markup=reply_markup)
+    await update.message.reply_text("Selecciona una inmersión para borrarla:", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -355,6 +407,8 @@ async def button_borrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Confirmar la eliminación al administrador
         await query.edit_message_text(text=f'La inmersión seleccionada ha sido borrada.')
+        # Llamando a /ver y anclando la nueva lista
+        await ver(update, context)
     finally:
         connection.close()
 
@@ -365,22 +419,26 @@ async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
     if not await is_admin(user_id, chat_id, bot):
-        await update.message.reply_text('Tienes que ser administrador para ejecutar este comando.')
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
 
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        # Obtener todas las inmersiones
-        await cursor.execute("SELECT inmersion_id, nombre FROM inmersiones")
+        # Filtrar las inmersiones por el grupo activo (active_group)
+        await cursor.execute("""
+            SELECT inmersion_id, nombre 
+            FROM inmersiones 
+            WHERE active_group = %s
+        """, (chat_id,))
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No hay inmersiones disponibles.")
+        await update.message.reply_text("No hay inmersiones disponibles.", disable_notification=True)
         connection.close()
         return
 
@@ -388,7 +446,7 @@ async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(nombre, callback_data=f'select_inmersion_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Selecciona una inmersión para ver los usuarios apuntados:", reply_markup=reply_markup)
+    await update.message.reply_text("Selecciona una inmersión para ver los usuarios apuntados:", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -448,12 +506,12 @@ async def handle_observation(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 # Si ya existe, actualizar la observación existente
                 await cursor.execute("UPDATE observaciones SET observacion=%s WHERE inmersion_id=%s AND user_id=%s", 
                                      (observacion, inmersion_id, user_id))
-                await update.message.reply_text(f'Observación actualizada para el usuario en la inmersión seleccionada.')
+                await update.message.reply_text(f'Observación actualizada para el usuario en la inmersión seleccionada.', disable_notification=True)
             else:
                 # Si no existe, insertar una nueva observación
                 await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", 
                                      (inmersion_id, user_id, observacion))
-                await update.message.reply_text(f'Observación añadida para el usuario en la inmersión seleccionada.')
+                await update.message.reply_text(f'Observación añadida para el usuario en la inmersión seleccionada.', disable_notification=True)
             
             await connection.commit()
     finally:
@@ -466,15 +524,15 @@ async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot = context.bot
 
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
     if not await is_admin(sender_user_id, chat_id, bot):
-        await update.message.reply_text('No tienes autorización para usar este comando.')
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
     if len(context.args) != 2:
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /eliminar_buceador <ID del evento> <ID del usuario>')
+        await update.message.reply_text('Uso incorrecto. El uso correcto es: /eliminar_buceador <ID del evento> <ID del usuario>', disable_notification=True)
         return
     
     evento_id = context.args[0]
@@ -483,11 +541,21 @@ async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
+        # Verificar si la inmersión pertenece al grupo activo
+        await cursor.execute("SELECT 1 FROM inmersiones WHERE inmersion_id=%s AND active_group=%s", (evento_id, chat_id))
+        valid_inmersion = await cursor.fetchone()
+
+        if not valid_inmersion:
+            await update.message.reply_text('No tienes autorización para eliminar usuarios de esta inmersión.', disable_notification=True)
+            connection.close()
+            return
+
+        # Proceder a eliminar el usuario de la inmersión
         await cursor.execute("DELETE FROM observaciones WHERE inmersion_id=%s AND user_id=%s", (evento_id, user_id))
         await cursor.execute("DELETE FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (evento_id, user_id))
         await connection.commit()
     
-    await update.message.reply_text(f'Usuario {user_id} eliminado de la inmersión {evento_id}.')
+    await update.message.reply_text(f'Usuario {user_id} eliminado de la inmersión {evento_id}.', disable_notification=True)
     connection.close()
 
 # Comando /purgar_datos (Solo Admin)
@@ -497,11 +565,11 @@ async def purgar_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bot = context.bot
 
     if not authorized(chat_id):
-        await update.message.reply_text('No tienes autorización para usar este bot.')
+        await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
     if not await is_admin(sender_user_id, chat_id, bot):
-        await update.message.reply_text('No tienes autorización para usar este comando.')
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
 
     # Crear un botón de confirmación con un icono de radioactivo
@@ -510,24 +578,43 @@ async def purgar_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("⚠️ ¿Estás seguro de que deseas purgar todos los datos del sistema?", reply_markup=reply_markup)
+    await update.message.reply_text("⚠️ ¿Estás seguro de que deseas purgar todos los datos del sistema?", reply_markup=reply_markup, disable_notification=True)
 
 # Paso 2: Ejecutar la purga de datos si se confirma
 async def confirmar_purgar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
+    chat_id = query.message.chat.id  # Obtener el chat_id del grupo o chat activo
+
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     try:
         async with connection.cursor() as cursor:
-            await cursor.execute("DELETE FROM observaciones")
-            await cursor.execute("DELETE FROM usuarios")
-            await cursor.execute("DELETE FROM inmersiones")
+            # Eliminar observaciones, usuarios e inmersiones que pertenezcan al grupo activo
+            await cursor.execute("""
+                DELETE o 
+                FROM observaciones o
+                JOIN inmersiones i ON o.inmersion_id = i.inmersion_id
+                WHERE i.active_group = %s
+            """, (chat_id,))
+
+            await cursor.execute("""
+                DELETE u 
+                FROM usuarios u
+                JOIN inmersiones i ON u.inmersion_id = i.inmersion_id
+                WHERE i.active_group = %s
+            """, (chat_id,))
+
+            await cursor.execute("""
+                DELETE FROM inmersiones 
+                WHERE active_group = %s
+            """, (chat_id,))
+
             await connection.commit()
 
         # Confirmar la eliminación al administrador
-        await query.edit_message_text(text='☢️ Todos los datos han sido purgados del sistema.')
+        await query.edit_message_text(text='☢️ Todos los datos del grupo han sido purgados del sistema.')
     finally:
         connection.close()
 
@@ -578,11 +665,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Notificar al usuario en el chat
                 await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.')
                 try:
-                    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.')
+                    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.', disable_notification=True)
                 except Forbidden:
                     # Si no puede enviar un mensaje privado, envía una respuesta en el grupo
-                    await query.message.reply_text(f'{username}, te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion} en este grupo.')
-
+                    await query.message.reply_text(f'{username}, te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion} en este grupo.', disable_notification=True)
+                # Llamando a /ver y anclando la nueva lista
+                await ver(update, context)
     finally:
         connection.close()
 
@@ -603,14 +691,14 @@ async def alquilerequipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No estás apuntado a ninguna inmersión.")
+        await update.message.reply_text("No estás apuntado a ninguna inmersión.", disable_notification=True)
         return
 
     # Crear botones para cada inmersión
     keyboard = [[InlineKeyboardButton(nombre, callback_data=f'equipo_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("¿En qué inmersión necesitas equipo?", reply_markup=reply_markup)
+    await update.message.reply_text("¿En qué inmersión necesitas equipo?", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 

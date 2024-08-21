@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: localhost:3306
--- Tiempo de generación: 19-08-2024 a las 18:56:30
+-- Tiempo de generación: 21-08-2024 a las 18:41:59
 -- Versión del servidor: 10.6.18-MariaDB-0ubuntu0.22.04.1
 -- Versión de PHP: 8.3.9
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Base de datos: `diving_bot`
+-- Base de datos: `diving_bot_multi`
 --
 
 -- --------------------------------------------------------
@@ -30,14 +30,15 @@ SET time_zone = "+00:00";
 CREATE TABLE `inmersiones` (
   `inmersion_id` int(11) NOT NULL,
   `nombre` varchar(255) NOT NULL,
-  `plazas` int(11) NOT NULL
+  `plazas` int(11) NOT NULL,
+  `active_group` bigint(11) NOT NULL,
+  `created_at` datetime NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 
 --
 -- RELACIONES PARA LA TABLA `inmersiones`:
 --
 
---
 -- --------------------------------------------------------
 
 --
@@ -78,6 +79,7 @@ CREATE TABLE `usuarios` (
 --       `inmersiones` -> `inmersion_id`
 --
 
+
 --
 -- Índices para tablas volcadas
 --
@@ -86,7 +88,8 @@ CREATE TABLE `usuarios` (
 -- Indices de la tabla `inmersiones`
 --
 ALTER TABLE `inmersiones`
-  ADD PRIMARY KEY (`inmersion_id`);
+  ADD PRIMARY KEY (`inmersion_id`),
+  ADD KEY `idx_active_group` (`active_group`);
 
 --
 -- Indices de la tabla `observaciones`
@@ -112,19 +115,19 @@ ALTER TABLE `usuarios`
 -- AUTO_INCREMENT de la tabla `inmersiones`
 --
 ALTER TABLE `inmersiones`
-  MODIFY `inmersion_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `inmersion_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
 
 --
 -- AUTO_INCREMENT de la tabla `observaciones`
 --
 ALTER TABLE `observaciones`
-  MODIFY `observacion_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
+  MODIFY `observacion_id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=30;
 
 --
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` bigint(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id` bigint(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=60;
 
 --
 -- Restricciones para tablas volcadas
