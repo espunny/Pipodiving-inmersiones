@@ -354,7 +354,7 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await cursor.execute("""
             INSERT INTO inmersiones (nombre, plazas, active_group, created_at) 
             VALUES (%s, %s, %s, %s)
-        """, (nombre, plazas, chat_id, timestamp))
+        """, (nombre, plazas+2, chat_id, timestamp))
         await connection.commit()
 
         # Obtener el ID generado automáticamente
