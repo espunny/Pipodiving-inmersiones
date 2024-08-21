@@ -46,7 +46,9 @@ def connect_db():
 
 # Verificación de autorización
 def authorized(chat_id):
-    return str(chat_id) == AUTHORIZED_GROUP_ID or str(chat_id) in AUTHORIZED_CHAT_ID.split(',')
+    # Convierte AUTHORIZED_GROUP_ID en una lista de IDs, eliminando espacios en blanco
+    authorized_ids = [id.strip() for id in AUTHORIZED_GROUP_ID.split(',')]
+    return str(chat_id) in authorized_ids
 
 # Función de inicio
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -210,7 +212,7 @@ async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
             inmersion = await cursor.fetchone()
             
             if inmersion is None:
-                await query.edit_message_text(text="No se encontró ninguna inmersión con ese ID.", disable_notification=True)
+                await query.edit_message_text(text="No se encontró ninguna inmersión con ese ID.")
                 connection.close()
                 return
             
@@ -221,7 +223,7 @@ async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await connection.commit()
 
         # Confirmar la baja al usuario
-        await query.edit_message_text(text=f'Te has dado de baja de la inmersión {nombre_inmersion}.', disable_notification=True)
+        await query.edit_message_text(text=f'Te has dado de baja de la inmersión {nombre_inmersion}.')
     finally:
         connection.close()
 
@@ -236,7 +238,7 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     
     if not await is_admin(sender_user_id, chat_id, bot):
-        await update.message.reply_text(NO_ADMINISTRADOR)
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
@@ -297,7 +299,7 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if not await is_admin(user_id, chat_id, bot):  # Await para la verificación de administrador
-        await update.message.reply_text(NO_ADMINISTRADOR)
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
     if len(context.args) < 2:  # Ahora se requieren solo dos argumentos: nombre y plazas
@@ -338,7 +340,7 @@ async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if not await is_admin(user_id, chat_id, bot):
-        await update.message.reply_text(NO_ADMINISTRADOR)
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return    
 
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
@@ -400,7 +402,7 @@ async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if not await is_admin(user_id, chat_id, bot):
-        await update.message.reply_text(NO_ADMINISTRADOR)
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
 
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
@@ -442,7 +444,7 @@ async def select_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usuarios = await cursor.fetchall()
 
     if not usuarios:
-        await query.edit_message_text("No hay usuarios apuntados a esta inmersión.", disable_notification=True)
+        await query.edit_message_text("No hay usuarios apuntados a esta inmersión.")
         connection.close()
         return
 
@@ -450,7 +452,7 @@ async def select_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(username, callback_data=f'select_user_{user_id}')] for user_id, username in usuarios]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text("Selecciona un usuario para agregar o modificar la observación:", reply_markup=reply_markup, disable_notification=True)
+    await query.edit_message_text("Selecciona un usuario para agregar o modificar la observación:", reply_markup=reply_markup)
     
     connection.close()
 
@@ -461,7 +463,7 @@ async def select_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.data.split('_')[2]
     context.user_data['selected_user'] = user_id
 
-    await query.edit_message_text(f"Escribe la observación para el usuario seleccionado:", disable_notification=True)
+    await query.edit_message_text(f"Escribe la observación para el usuario seleccionado:")
 
     return 'WAITING_FOR_OBSERVATION'
 
@@ -505,7 +507,7 @@ async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if not await is_admin(sender_user_id, chat_id, bot):
-        await update.message.reply_text(NO_ADMINISTRADOR)
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
     if len(context.args) != 2:
@@ -546,7 +548,7 @@ async def purgar_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if not await is_admin(sender_user_id, chat_id, bot):
-        await update.message.reply_text(NO_ADMINISTRADOR)
+        await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
 
     # Crear un botón de confirmación con un icono de radioactivo
@@ -591,7 +593,7 @@ async def confirmar_purgar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await connection.commit()
 
         # Confirmar la eliminación al administrador
-        await query.edit_message_text(text='☢️ Todos los datos del grupo han sido purgados del sistema.', disable_notification=True)
+        await query.edit_message_text(text='☢️ Todos los datos del grupo han sido purgados del sistema.')
     finally:
         connection.close()
 
@@ -614,7 +616,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             inmersion = await cursor.fetchone()
             
             if inmersion is None:
-                await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.', disable_notification=True)
+                await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.')
                 return
 
             nombre_inmersion, plazas_disponibles = inmersion
@@ -624,7 +626,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             usuarios_apuntados = await cursor.fetchone()
 
             if usuarios_apuntados[0] >= plazas_disponibles:
-                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.', disable_notification=True)
+                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
                 return
 
             # Verificar si el usuario ya está registrado en la inmersión
@@ -633,14 +635,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if count > 0:
                 # Si el usuario ya está registrado, enviar un mensaje de aviso
-                await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.', disable_notification=True)
+                await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.')
             else:
                 # Si el usuario no está registrado y hay plazas disponibles, insertar el nuevo registro
                 await cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
                 await connection.commit()
 
                 # Notificar al usuario en el chat
-                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.', disable_notification=True)
+                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.')
                 try:
                     await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.', disable_notification=True)
                 except Forbidden:
@@ -697,7 +699,7 @@ async def button_equipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if count > 0:
                 # Si ya existe un registro, informar al usuario
-                await query.edit_message_text(text="Ya habías informado que necesitas equipo para esta inmersión.", disable_notification=True)
+                await query.edit_message_text(text="Ya habías informado que necesitas equipo para esta inmersión.")
             else:
                 # Insertar en la tabla observaciones
                 await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", 
@@ -705,7 +707,7 @@ async def button_equipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await connection.commit()
 
                 # Confirmar la acción al usuario
-                await query.edit_message_text(text="Se ha registrado que necesitas equipo en la inmersión seleccionada.", disable_notification=True)
+                await query.edit_message_text(text="Se ha registrado que necesitas equipo en la inmersión seleccionada.")
     finally:
         connection.close()
 
