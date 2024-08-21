@@ -1,11 +1,13 @@
 
-# Versión con bases de datos
+# Versión con bases de datos.
 # Versión multiclub Nuevos campos 'active_group' 'created_at'
-# Versión que elimina las inmersiones después de un mes de su creación
-# La base de datos estará en un servidor MariaDb
+# Versión que permitirá eliminar las inmersiones por fecha.
+# Todos los mensajes se envían en modo silencioso.
+# La base de datos estará en un servidor MariaDb.
 import os
 import aiomysql
 import pymysql
+import datetime
 import asyncio
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -15,7 +17,7 @@ from telegram.error import Forbidden
 
 
 # Cargar variables de entorno desde el archivo .env
-# load_dotenv()
+load_dotenv()
 
 # Variables del sistema
 TOKEN = os.getenv('TOKEN')
@@ -71,7 +73,7 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
         inmersiones = await cursor.fetchall()
     
     if not inmersiones:
-        await update.message.reply_text('No hay inmersiones disponibles para este grupo.')
+        await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
     else:
         # Variable para almacenar todo el mensaje
         texto_completo = ""
@@ -102,9 +104,9 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
 
         # Enviar todo el mensaje en un solo envío
         if private:
-            await context.bot.send_message(chat_id=update.effective_user.id, text=texto_completo.strip(), parse_mode='Markdown')
+            await context.bot.send_message(chat_id=update.effective_user.id, text=texto_completo.strip(), parse_mode='Markdown', disable_notification=True)
         else:
-            await update.message.reply_text(texto_completo.strip(), parse_mode='Markdown')
+            await update.message.reply_text(texto_completo.strip(), parse_mode='Markdown', disable_notification=True)
     
     connection.close()
 
@@ -113,7 +115,7 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
 async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
     if not authorized(chat_id):
-        await update.message.reply_text(BOT_NO_AUTORIZADO)
+        await update.message.reply_text(BOT_NO_AUTORIZADO, disable_notification=True)
         return
     
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
@@ -128,7 +130,7 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
         inmersiones = await cursor.fetchall()
     
     if not inmersiones:
-        await update.message.reply_text('No hay inmersiones disponibles para este grupo.')
+        await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
     else:
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas = inmersion
@@ -151,9 +153,9 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
             keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup)
+                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
             else:
-                await update.message.reply_text(texto, reply_markup=reply_markup)
+                await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -179,7 +181,7 @@ async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No estás apuntado a ninguna inmersión.")
+        await update.message.reply_text("No estás apuntado a ninguna inmersión.", disable_notification=True)
         connection.close()
         return
 
@@ -187,7 +189,7 @@ async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(nombre, callback_data=f'baja_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Selecciona la inmersión de la que deseas darte de baja:", reply_markup=reply_markup)
+    await update.message.reply_text("Selecciona la inmersión de la que deseas darte de baja:", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -208,7 +210,7 @@ async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
             inmersion = await cursor.fetchone()
             
             if inmersion is None:
-                await query.edit_message_text(text="No se encontró ninguna inmersión con ese ID.")
+                await query.edit_message_text(text="No se encontró ninguna inmersión con ese ID.", disable_notification=True)
                 connection.close()
                 return
             
@@ -219,7 +221,7 @@ async def button_baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await connection.commit()
 
         # Confirmar la baja al usuario
-        await query.edit_message_text(text=f'Te has dado de baja de la inmersión {nombre_inmersion}.')
+        await query.edit_message_text(text=f'Te has dado de baja de la inmersión {nombre_inmersion}.', disable_notification=True)
     finally:
         connection.close()
 
@@ -249,7 +251,7 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
         inmersiones = await cursor.fetchall()
     
     if not inmersiones:
-        await update.message.reply_text('No hay inmersiones disponibles para este grupo.')
+        await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
     else:
         for inmersion in inmersiones:
             inmersion_id, nombre, plazas = inmersion
@@ -272,14 +274,13 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
             keyboard = [[InlineKeyboardButton("🤿 Apuntarse", callback_data=f'apuntarse_{inmersion_id}')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup)
+                await context.bot.send_message(chat_id=update.effective_user.id, text=texto, reply_markup=reply_markup, disable_notification=True)
             else:
-                await update.message.reply_text(texto, reply_markup=reply_markup)
+                await update.message.reply_text(texto, reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
 # Comando /crear_inmersion (Solo Admin)
-import datetime
 
 async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -288,7 +289,7 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Verifica si update.message es None
     if update.message is None:
-        await context.bot.send_message(chat_id=chat_id, text='Este comando solo se puede usar en un contexto de mensaje de texto.')
+        await context.bot.send_message(chat_id=chat_id, text='Este comando solo se puede usar en un contexto de mensaje de texto.', disable_notification=True)
         return
 
     if not authorized(chat_id):
@@ -300,7 +301,7 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if len(context.args) < 2:  # Ahora se requieren solo dos argumentos: nombre y plazas
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /crear_inmersion <Nombre del evento> <Plazas>')
+        await update.message.reply_text('Uso incorrecto. El uso correcto es: /crear_inmersion <Nombre del evento> <Plazas>', disable_notification=True)
         return
     
     nombre = ' '.join(context.args[:-1])  # Toma todos los argumentos menos el último como nombre
@@ -323,7 +324,7 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await cursor.execute("SELECT LAST_INSERT_ID()")
         (evento_id,) = await cursor.fetchone()
     
-    await update.message.reply_text(f'Inmersión creada: {nombre} (ID: {evento_id}, Plazas: {plazas}, Creada en: {timestamp}).')
+    await update.message.reply_text(f'Inmersión creada: {nombre} (ID: {evento_id}, Plazas: {plazas}, Creada en: {timestamp}).', disable_notification=True)
     connection.close()
 
 # Comando /borrar_inmersion (Solo Admin)
@@ -354,7 +355,7 @@ async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No hay inmersiones disponibles para borrar.")
+        await update.message.reply_text("No hay inmersiones disponibles para borrar.", disable_notification=True)
         connection.close()
         return
 
@@ -365,7 +366,7 @@ async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Selecciona una inmersión para borrarla:", reply_markup=reply_markup)
+    await update.message.reply_text("Selecciona una inmersión para borrarla:", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -414,7 +415,7 @@ async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No hay inmersiones disponibles.")
+        await update.message.reply_text("No hay inmersiones disponibles.", disable_notification=True)
         connection.close()
         return
 
@@ -422,7 +423,7 @@ async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(nombre, callback_data=f'select_inmersion_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("Selecciona una inmersión para ver los usuarios apuntados:", reply_markup=reply_markup)
+    await update.message.reply_text("Selecciona una inmersión para ver los usuarios apuntados:", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -441,7 +442,7 @@ async def select_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usuarios = await cursor.fetchall()
 
     if not usuarios:
-        await query.edit_message_text("No hay usuarios apuntados a esta inmersión.")
+        await query.edit_message_text("No hay usuarios apuntados a esta inmersión.", disable_notification=True)
         connection.close()
         return
 
@@ -449,7 +450,7 @@ async def select_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(username, callback_data=f'select_user_{user_id}')] for user_id, username in usuarios]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await query.edit_message_text("Selecciona un usuario para agregar o modificar la observación:", reply_markup=reply_markup)
+    await query.edit_message_text("Selecciona un usuario para agregar o modificar la observación:", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -460,7 +461,7 @@ async def select_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.data.split('_')[2]
     context.user_data['selected_user'] = user_id
 
-    await query.edit_message_text(f"Escribe la observación para el usuario seleccionado:")
+    await query.edit_message_text(f"Escribe la observación para el usuario seleccionado:", disable_notification=True)
 
     return 'WAITING_FOR_OBSERVATION'
 
@@ -482,12 +483,12 @@ async def handle_observation(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 # Si ya existe, actualizar la observación existente
                 await cursor.execute("UPDATE observaciones SET observacion=%s WHERE inmersion_id=%s AND user_id=%s", 
                                      (observacion, inmersion_id, user_id))
-                await update.message.reply_text(f'Observación actualizada para el usuario en la inmersión seleccionada.')
+                await update.message.reply_text(f'Observación actualizada para el usuario en la inmersión seleccionada.', disable_notification=True)
             else:
                 # Si no existe, insertar una nueva observación
                 await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", 
                                      (inmersion_id, user_id, observacion))
-                await update.message.reply_text(f'Observación añadida para el usuario en la inmersión seleccionada.')
+                await update.message.reply_text(f'Observación añadida para el usuario en la inmersión seleccionada.', disable_notification=True)
             
             await connection.commit()
     finally:
@@ -508,7 +509,7 @@ async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     if len(context.args) != 2:
-        await update.message.reply_text('Uso incorrecto. El uso correcto es: /eliminar_buceador <ID del evento> <ID del usuario>')
+        await update.message.reply_text('Uso incorrecto. El uso correcto es: /eliminar_buceador <ID del evento> <ID del usuario>', disable_notification=True)
         return
     
     evento_id = context.args[0]
@@ -522,7 +523,7 @@ async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
         valid_inmersion = await cursor.fetchone()
 
         if not valid_inmersion:
-            await update.message.reply_text('No tienes autorización para eliminar usuarios de esta inmersión.')
+            await update.message.reply_text('No tienes autorización para eliminar usuarios de esta inmersión.', disable_notification=True)
             connection.close()
             return
 
@@ -531,7 +532,7 @@ async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await cursor.execute("DELETE FROM usuarios WHERE inmersion_id=%s AND user_id=%s", (evento_id, user_id))
         await connection.commit()
     
-    await update.message.reply_text(f'Usuario {user_id} eliminado de la inmersión {evento_id}.')
+    await update.message.reply_text(f'Usuario {user_id} eliminado de la inmersión {evento_id}.', disable_notification=True)
     connection.close()
 
 # Comando /purgar_datos (Solo Admin)
@@ -554,7 +555,7 @@ async def purgar_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("⚠️ ¿Estás seguro de que deseas purgar todos los datos del sistema?", reply_markup=reply_markup)
+    await update.message.reply_text("⚠️ ¿Estás seguro de que deseas purgar todos los datos del sistema?", reply_markup=reply_markup, disable_notification=True)
 
 # Paso 2: Ejecutar la purga de datos si se confirma
 async def confirmar_purgar(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -590,7 +591,7 @@ async def confirmar_purgar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await connection.commit()
 
         # Confirmar la eliminación al administrador
-        await query.edit_message_text(text='☢️ Todos los datos del grupo han sido purgados del sistema.')
+        await query.edit_message_text(text='☢️ Todos los datos del grupo han sido purgados del sistema.', disable_notification=True)
     finally:
         connection.close()
 
@@ -613,7 +614,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             inmersion = await cursor.fetchone()
             
             if inmersion is None:
-                await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.')
+                await query.edit_message_text(text='No se encontró ninguna inmersión con ese ID.', disable_notification=True)
                 return
 
             nombre_inmersion, plazas_disponibles = inmersion
@@ -623,7 +624,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             usuarios_apuntados = await cursor.fetchone()
 
             if usuarios_apuntados[0] >= plazas_disponibles:
-                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.')
+                await query.edit_message_text(text=f'{username}, no hay plazas disponibles para la inmersión {nombre_inmersion}.', disable_notification=True)
                 return
 
             # Verificar si el usuario ya está registrado en la inmersión
@@ -632,19 +633,19 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if count > 0:
                 # Si el usuario ya está registrado, enviar un mensaje de aviso
-                await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.')
+                await query.edit_message_text(text=f'{username}, ya estás apuntado a la inmersión {nombre_inmersion}.', disable_notification=True)
             else:
                 # Si el usuario no está registrado y hay plazas disponibles, insertar el nuevo registro
                 await cursor.execute("INSERT INTO usuarios (inmersion_id, user_id, username) VALUES (%s, %s, %s)", (inmersion_id, user_id, username))
                 await connection.commit()
 
                 # Notificar al usuario en el chat
-                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.')
+                await query.edit_message_text(text=f'{username}, te has apuntado a la inmersión {nombre_inmersion}.', disable_notification=True)
                 try:
-                    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.')
+                    await context.bot.send_message(chat_id=user_id, text=f'Te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion}.', disable_notification=True)
                 except Forbidden:
                     # Si no puede enviar un mensaje privado, envía una respuesta en el grupo
-                    await query.message.reply_text(f'{username}, te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion} en este grupo.')
+                    await query.message.reply_text(f'{username}, te has apuntado a la inmersión {nombre_inmersion}. Para darte de baja, usa el comando /baja {nombre_inmersion} en este grupo.', disable_notification=True)
 
     finally:
         connection.close()
@@ -666,14 +667,14 @@ async def alquilerequipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No estás apuntado a ninguna inmersión.")
+        await update.message.reply_text("No estás apuntado a ninguna inmersión.", disable_notification=True)
         return
 
     # Crear botones para cada inmersión
     keyboard = [[InlineKeyboardButton(nombre, callback_data=f'equipo_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text("¿En qué inmersión necesitas equipo?", reply_markup=reply_markup)
+    await update.message.reply_text("¿En qué inmersión necesitas equipo?", reply_markup=reply_markup, disable_notification=True)
     
     connection.close()
 
@@ -696,7 +697,7 @@ async def button_equipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if count > 0:
                 # Si ya existe un registro, informar al usuario
-                await query.edit_message_text(text="Ya habías informado que necesitas equipo para esta inmersión.")
+                await query.edit_message_text(text="Ya habías informado que necesitas equipo para esta inmersión.", disable_notification=True)
             else:
                 # Insertar en la tabla observaciones
                 await cursor.execute("INSERT INTO observaciones (inmersion_id, user_id, observacion) VALUES (%s, %s, %s)", 
@@ -704,7 +705,7 @@ async def button_equipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await connection.commit()
 
                 # Confirmar la acción al usuario
-                await query.edit_message_text(text="Se ha registrado que necesitas equipo en la inmersión seleccionada.")
+                await query.edit_message_text(text="Se ha registrado que necesitas equipo en la inmersión seleccionada.", disable_notification=True)
     finally:
         connection.close()
 
