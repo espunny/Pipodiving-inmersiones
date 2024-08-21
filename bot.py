@@ -674,27 +674,33 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         connection.close()
 
-#El usuario podrá marcar la inmersión en la que necesita equipo.
+# El usuario podrá marcar la inmersión en la que necesita equipo.
 async def alquilerequipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
 
+    if not authorized(chat_id):
+        await update.message.reply_text(BOT_NO_AUTORIZADO)
+        return
+    
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     async with connection.cursor() as cursor:
-        # Obtener las inmersiones a las que el usuario está apuntado
+        # Obtener las inmersiones a las que el usuario está apuntado y que pertenecen al grupo activo
         await cursor.execute("""
             SELECT i.inmersion_id, i.nombre
             FROM inmersiones i
             JOIN usuarios u ON i.inmersion_id = u.inmersion_id
-            WHERE u.user_id = %s
-        """, (user_id,))
+            WHERE u.user_id = %s AND i.active_group = %s
+        """, (user_id, chat_id))
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
-        await update.message.reply_text("No estás apuntado a ninguna inmersión.", disable_notification=True)
+        await update.message.reply_text("No estás apuntado a ninguna inmersión en este grupo.", disable_notification=True)
+        connection.close()
         return
 
-    # Crear botones para cada inmersión
+    # Crear botones para cada inmersión del grupo activo
     keyboard = [[InlineKeyboardButton(nombre, callback_data=f'equipo_{inmersion_id}')] for inmersion_id, nombre in inmersiones]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
