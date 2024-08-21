@@ -146,46 +146,6 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
         connection.close()
 
 
-# Comando /inmersiones con botones más grandes
-async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
-    chat_id = update.effective_chat.id
-    if not authorized(chat_id):
-        await update.message.reply_text(BOT_NO_AUTORIZADO, disable_notification=True)
-        return
-    
-    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
-
-    async with connection.cursor() as cursor:
-        # Filtrar las inmersiones por el grupo activo (active_group)
-        await cursor.execute("""
-            SELECT i.inmersion_id, i.nombre, i.plazas, COUNT(u.user_id) AS inscritos
-            FROM inmersiones i
-            LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
-            WHERE i.active_group = %s
-            GROUP BY i.inmersion_id, i.nombre, i.plazas
-        """, (chat_id,))
-        inmersiones = await cursor.fetchall()
-    
-    if not inmersiones:
-        await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
-    else:
-        keyboard = []
-        for inmersion in inmersiones:
-            inmersion_id, nombre, plazas, inscritos = inmersion
-            plazas_restantes = max(plazas - inscritos, 0) - 2
-            plazas_restantes = max(plazas_restantes, 0)
-            button_text = f"{nombre}\n{plazas_restantes} plazas restantes"
-            keyboard.append([InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')])
-        
-        reply_markup = InlineKeyboardMarkup(keyboard, resize_keyboard=True)
-        
-        if private:
-            await context.bot.send_message(chat_id=update.effective_user.id, text="Selecciona una inmersión:", reply_markup=reply_markup, disable_notification=True)
-        else:
-            await update.message.reply_text("Selecciona una inmersión:", reply_markup=reply_markup, disable_notification=True)
-    
-    connection.close()
-
 # Manejador de la interacción con el botón "Apuntarse"
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -245,6 +205,46 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await ver(update, context)
     finally:
         connection.close()
+
+# Comando /inmersiones con ajuste de botones
+async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
+    chat_id = update.effective_chat.id
+    if not authorized(chat_id):
+        await update.message.reply_text(BOT_NO_AUTORIZADO, disable_notification=True)
+        return
+    
+    connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
+
+    async with connection.cursor() as cursor:
+        # Filtrar las inmersiones por el grupo activo (active_group)
+        await cursor.execute("""
+            SELECT i.inmersion_id, i.nombre, i.plazas, COUNT(u.user_id) AS inscritos
+            FROM inmersiones i
+            LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+            WHERE i.active_group = %s
+            GROUP BY i.inmersion_id, i.nombre, i.plazas
+        """, (chat_id,))
+        inmersiones = await cursor.fetchall()
+    
+    if not inmersiones:
+        await update.message.reply_text('No hay inmersiones disponibles para este grupo.', disable_notification=True)
+    else:
+        keyboard = []
+        for inmersion in inmersiones:
+            inmersion_id, nombre, plazas, inscritos = inmersion
+            plazas_restantes = max(plazas - inscritos, 0) - 2
+            plazas_restantes = max(plazas_restantes, 0)
+            button_text = f"{nombre}\n{plazas_restantes} plazas restantes"
+            keyboard.append([InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if private:
+            await context.bot.send_message(chat_id=update.effective_user.id, text="Selecciona una inmersión:", reply_markup=reply_markup, disable_notification=True)
+        else:
+            await update.message.reply_text("Selecciona una inmersión:", reply_markup=reply_markup, disable_notification=True)
+    
+    connection.close()
 
 # Comando /baja
 async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
