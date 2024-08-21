@@ -10,6 +10,7 @@ Se puede probar el funcionamiento en el siguiente grupo privado. Solamente hay q
 https://t.me/+2yurjF0IprU0Y2E0
 
 Mejoras de la versión beta3:
+- Consultas asíncronas a la base de datos.
 - Se crean dos plazas de reserva con cada inmersión.
 - El mismo Bot, podrá funcionar en varios grupos simultáneamente. Por motivos de rendimiento y seguridad aún hay una lista blanca de grupos en la variable de entorno: AUTHORIZED_GROUP_ID. El administrador que quiera instalar el bot en un grupo no autorizado tendrá que solicitarlo con un mensaje.
 - Se ha añadido un timestamp en las inmersiones para poder purgar la base de datos después de un tiempo. Necesario para que no queden inmeriones huérfanas u olvidadas en la base de datos.
