@@ -9,11 +9,18 @@ Se agradece cualquier idea o aportación.
 Se puede probar el funcionamiento en el siguiente grupo privado. Solamente hay que poner el símbolo "/" o pinchar en el icono de comandos y se mostrarán los comandos disponibles.
 https://t.me/+2yurjF0IprU0Y2E0
 
-Mejoras de esa versión:
-- El mismo Bot, podrá funcionar en varios grupos. Por motivos de rendimiento y seguridad aún hay una lista blanca de grupos en la variable de entorno: AUTHORIZED_GROUP_ID. El administrador que quiera instalar el bot en un grupo no autorizado tendrá que solicitarlo con un mensaje.
-- Se ha añadido un timestamp en las inmersiones para poder purgar la base de datos después de un tiempo. Necesario si quedan inmeriones huérfanas u olvidadas en la base de datos.
+Mejoras de la versión beta3:
+- El mismo Bot, podrá funcionar en varios grupos simultáneamente. Por motivos de rendimiento y seguridad aún hay una lista blanca de grupos en la variable de entorno: AUTHORIZED_GROUP_ID. El administrador que quiera instalar el bot en un grupo no autorizado tendrá que solicitarlo con un mensaje.
+- Se ha añadido un timestamp en las inmersiones para poder purgar la base de datos después de un tiempo. Necesario para que no queden inmeriones huérfanas u olvidadas en la base de datos.
+- Ahora los mensajes de interacción con el bot, se envían en silencio para no molestar al resto de integrantes.
+- El comando /ver ahora se ancla al ejecutarse.
+- La creación de inmersiones, las bajas, altas de buceadores y bajas de los mismos, actualizarán el comando /ver automáticamente, anclando la lista de inmersiones actualizada.
 
-En esta versión los administradores del grupo, son los administradores del bot.
+Mejoras de la versión Beta2:
+- En esta versión los administradores del grupo, son los administradores del bot.
+- Todos los comandos ahora son interactivos excepto eliminar buceador.
+- Versión con persistencia en bases de datos.
+
 
 --------
 Telegram bot to manage dives of a diving club.
@@ -91,12 +98,12 @@ Este bot está diseñado para gestionar inmersiones y usuarios registrados en el
      /observaciones 123 456 Curso OWD. Necesita equipo
      ```
 
-5. **`/eliminar_usuario <ID del evento> <ID del usuario>`**
+5. **`/eliminar_buceador <ID del evento> <ID del usuario>`**
    - **Descripción**: Elimina a un usuario específico de una inmersión.
    - **Uso**: `/eliminar_usuario <ID del evento> <ID del usuario>`
    - **Ejemplo**:
      ```
-     /eliminar_usuario 123 456
+     /eliminar_buceador 123 456
      ```
 
 6. **`/purgar_datos`**

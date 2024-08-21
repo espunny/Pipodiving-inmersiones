@@ -17,7 +17,7 @@ from telegram.error import Forbidden
 
 
 # Cargar variables de entorno desde el archivo .env
-#load_dotenv()
+# load_dotenv()
 
 # Variables del sistema
 TOKEN = os.getenv('TOKEN')
