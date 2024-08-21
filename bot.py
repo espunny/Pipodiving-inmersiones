@@ -146,6 +146,8 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
         connection.close()
 
 
+import asyncio
+
 # Comando /inmersiones con texto y botón enviados con una pausa de 1 segundo
 async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
@@ -177,12 +179,6 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
 
             # Texto para la inmersión
             texto_inmersion = f"**{nombre}**\nPlazas restantes: {plazas_restantes_mostradas}\n"
-            
-            # Enviar el texto de la inmersión
-            if private:
-                await context.bot.send_message(chat_id=update.effective_user.id, text=texto_inmersion.strip(), parse_mode='Markdown', disable_notification=True)
-            else:
-                await update.message.reply_text(texto_inmersion.strip(), parse_mode='Markdown', disable_notification=True)
 
             # Crear el botón de inscripción con el emoji de buceador si hay plazas disponibles
             if inscritos < plazas:
@@ -190,11 +186,11 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
                 keyboard = [[InlineKeyboardButton(button_text, callback_data=f'apuntarse_{inmersion_id}')]]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                # Enviar el botón debajo del texto
+                # Enviar el texto y el botón juntos en un solo mensaje
                 if private:
-                    await context.bot.send_message(chat_id=update.effective_user.id, text="", reply_markup=reply_markup, disable_notification=True)
+                    await context.bot.send_message(chat_id=update.effective_user.id, text=texto_inmersion.strip(), parse_mode='Markdown', reply_markup=reply_markup, disable_notification=True)
                 else:
-                    await update.message.reply_text(text="", reply_markup=reply_markup, disable_notification=True)
+                    await update.message.reply_text(texto_inmersion.strip(), parse_mode='Markdown', reply_markup=reply_markup, disable_notification=True)
 
             # Pausa de 1 segundo entre mensajes
             await asyncio.sleep(1)
@@ -259,7 +255,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await ver(update, context)
     finally:
         connection.close()
-
+        
 # Comando /baja
 async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
