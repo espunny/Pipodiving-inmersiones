@@ -460,9 +460,8 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nombre = ' '.join(context.args[:-1])  # Toma todos los argumentos menos el último como nombre
     plazas = context.args[-1]  # Toma el último argumento como plazas
 
-    # Evitar almacenar en la base de datos caracteres que entren en conflicto con markdown    
-    if re.search(r'[*_`$begin:math:display$$end:math:display$()~|#+-=]', nombre):
-        await update.message.reply_text('El nombre de la inmersión contiene caracteres no permitidos para Markdown.', disable_notification=True)
+    if '*' in nombre:
+        await update.message.reply_text('El nombre de la inmersión no puede contener asteriscos (*).', disable_notification=True)
         return
     
     try:
