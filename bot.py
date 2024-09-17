@@ -464,11 +464,11 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         #    VALUES (%s, %s, %s, %s)
         #""", (nombre, plazas_con_reserva, chat_id, timestamp))
 
-        # Insertar la inmersión sin el campo active_group
+        # Insertar la inmersión con un valor fijo para active_group
         await cursor.execute("""
-            INSERT INTO inmersiones (nombre, plazas, created_at) 
-            VALUES (%s, %s, %s)
-        """, (nombre, plazas_con_reserva, timestamp))
+            INSERT INTO inmersiones (nombre, plazas, active_group, created_at) 
+            VALUES (%s, %s, %s, %s)
+        """, (nombre, plazas_con_reserva, 0, timestamp))
 
         await connection.commit()
 
@@ -727,36 +727,19 @@ async def confirmar_purgar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    chat_id = query.message.chat.id  # Obtener el chat_id del grupo o chat activo
-
     connection = await aiomysql.connect(host=MYSQL_HOST, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DATABASE)
 
     try:
         async with connection.cursor() as cursor:
-            # Eliminar observaciones, usuarios e inmersiones que pertenezcan al grupo activo
-            await cursor.execute("""
-                DELETE o 
-                FROM observaciones o
-                JOIN inmersiones i ON o.inmersion_id = i.inmersion_id
-                WHERE i.active_group = %s
-            """, (chat_id,))
-
-            await cursor.execute("""
-                DELETE u 
-                FROM usuarios u
-                JOIN inmersiones i ON u.inmersion_id = i.inmersion_id
-                WHERE i.active_group = %s
-            """, (chat_id,))
-
-            await cursor.execute("""
-                DELETE FROM inmersiones 
-                WHERE active_group = %s
-            """, (chat_id,))
-
+            # Eliminar todos los registros de las tablas observaciones, usuarios e inmersiones
+            await cursor.execute("DELETE FROM observaciones")
+            await cursor.execute("DELETE FROM usuarios")
+            await cursor.execute("DELETE FROM inmersiones")
+            
             await connection.commit()
 
         # Confirmar la eliminación al administrador
-        await query.edit_message_text(text='☢️ Todos los datos del grupo han sido purgados del sistema.')
+        await query.edit_message_text(text='☢️ Todos los datos han sido purgados del sistema.')
     finally:
         connection.close()
 
