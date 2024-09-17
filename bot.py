@@ -10,6 +10,8 @@ import aiomysql
 import pymysql
 import datetime
 import asyncio
+import re  # Importar el módulo de expresiones regulares
+
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 # from telegram.ext import CommandHandler, CallbackQueryHandler, Filters, MessageHandler, Updater, ContextTypes
