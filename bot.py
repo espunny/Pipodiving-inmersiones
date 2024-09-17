@@ -36,7 +36,7 @@ NO_ADMINISTRADOR = 'Solamente un administrador del grupo puede usar este comando
 # Saber si un usuario es administrador o creador
 async def is_admin_or_creator(user_id, chat_id, bot):
     # Obtener la lista de IDs autorizados desde la variable de entorno y dividirla en una lista
-    authorized_ids = os.getenv('AUTHORIZED_CHAT_ID', '').split(',')
+    authorized_ids = [id.strip() for id in AUTHORIZED_CHAT_ID.split(',')]
     
     # Verificar si el usuario es uno de los IDs autorizados
     if str(user_id) in authorized_ids:
