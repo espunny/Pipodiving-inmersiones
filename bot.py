@@ -35,12 +35,25 @@ NO_ADMINISTRADOR = 'Solamente un administrador del grupo puede usar este comando
 
 # Saber si un usuario es administrador o creador
 async def is_admin_or_creator(user_id, chat_id, bot):
-    chat_administrators = await bot.get_chat_administrators(chat_id)  # Await la coroutine
-    for admin in chat_administrators:
-        if admin.user.id == user_id:
-            # Comprobar si el usuario es creador del grupo
-            if admin.status == 'creator' or admin.status == 'administrator':
-                return True
+    # Obtener la lista de IDs autorizados desde la variable de entorno y dividirla en una lista
+    authorized_ids = os.getenv('AUTHORIZED_CHAT_ID', '').split(',')
+    
+    # Verificar si el usuario es uno de los IDs autorizados
+    if str(user_id) in authorized_ids:
+        return True
+    
+    # Continuar con la verificación de administradores y creadores
+    try:
+        chat_administrators = await bot.get_chat_administrators(chat_id)  # Await la coroutine
+        for admin in chat_administrators:
+            if admin.user.id == user_id:
+                # Comprobar si el usuario es creador del grupo o administrador
+                if admin.status == 'creator' or admin.status == 'administrator':
+                    return True
+    except Exception as e:
+        # Manejar cualquier error (opcional)
+        print(f"Error al verificar permisos del usuario: {e}")
+    
     return False
 
 # Conectar a la base de datos
