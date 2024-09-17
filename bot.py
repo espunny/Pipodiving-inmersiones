@@ -462,8 +462,8 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Evitar almacenar en la base de datos caracteres que entren en conflicto con markdown    
     if re.search(r'[*_`\[\]()~|#+-=]', nombre):
-    await update.message.reply_text('El nombre de la inmersión contiene caracteres no permitidos para Markdown.', disable_notification=True)
-    return
+        await update.message.reply_text('El nombre de la inmersión contiene caracteres no permitidos para Markdown.', disable_notification=True)
+        return
     
     try:
         plazas = int(plazas)
