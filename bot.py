@@ -178,9 +178,6 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
     finally:
         connection.close()
 
-
-import asyncio
-
 # Comando /inmersiones con texto y botón enviados con una pausa de 1 segundo
 async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False):
     chat_id = update.effective_chat.id
@@ -460,6 +457,16 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     nombre = ' '.join(context.args[:-1])  # Toma todos los argumentos menos el último como nombre
     plazas = context.args[-1]  # Toma el último argumento como plazas
+
+    # Validar el nombre para que no contenga asteriscos
+    if '*' in nombre:
+        await update.message.reply_text('El nombre de la inmersión no puede contener asteriscos (*).', disable_notification=True)
+        return
+
+    # Otra opción: Usar expresiones regulares para evitar cualquier carácter especial
+    if not re.match(r'^[\w\s-]+$', nombre):
+        await update.message.reply_text('El nombre de la inmersión contiene caracteres no permitidos.', disable_notification=True)
+        return
     
     try:
         plazas = int(plazas)
