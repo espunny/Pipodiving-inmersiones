@@ -12,6 +12,7 @@ https://t.me/+2yurjF0IprU0Y2E0
 
 Cambios versión beta4:
 - Se ha solucionado un bug por el que los propietarios de un grupo, no tienen los permisos de los administradores.
+- Se ha solucionado un bug por el que los * en el nombre de las inmersiones, interferían con el Markdown de Telegram.
 - Se ha eliminado la posiblidad de que varios grupos tengas sus inmersiones separadas.
 - Ahora Un club con varios grupos, puede gestionar las mismas inmersiones, siempre que estén en la lista blanca de grupos.
 
