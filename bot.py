@@ -1,6 +1,7 @@
 
 # Versión con bases de datos.
-# Versión multiclub Nuevos campos 'active_group' 'created_at'
+# Rollback eliminando la posiblidad de multiclub. Diseñado para que varios grupos puedan compartir inmeriones.
+# Solamente los grupos dados de alta el el fichero o el entorno, podrán usar el Bot.
 # Versión que permitirá eliminar las inmersiones por fecha.
 # Todos los mensajes se envían en modo silencioso.
 # La base de datos estará en un servidor MariaDb.
@@ -32,12 +33,14 @@ AUTHORIZED_CHAT_ID = os.getenv('AUTHORIZED_CHAT_ID')
 BOT_NO_AUTORIZADO = 'Para autorizar este bot, escribe el comando /start y envía el identificador que aparece en un mensaje privado a: @t850model102'
 NO_ADMINISTRADOR = 'Solamente un administrador del grupo puede usar este comando'
 
-# Saber si un usuario es administrador
-async def is_admin(user_id, chat_id, bot):
+# Saber si un usuario es administrador o creador
+async def is_admin_or_creator(user_id, chat_id, bot):
     chat_administrators = await bot.get_chat_administrators(chat_id)  # Await la coroutine
     for admin in chat_administrators:
         if admin.user.id == user_id:
-            return True
+            # Comprobar si el usuario es creador del grupo
+            if admin.status == 'creator' or admin.status == 'administrator':
+                return True
     return False
 
 # Conectar a la base de datos
@@ -71,11 +74,18 @@ async def ver(update: Update, context: ContextTypes.DEFAULT_TYPE, private=False)
     try:
         async with connection.cursor() as cursor:
             # Filtrar las inmersiones por el grupo activo (active_group)
+            # await cursor.execute("""
+            #    SELECT inmersion_id, nombre, plazas 
+            #    FROM inmersiones 
+            #    WHERE active_group = %s
+            #""", (chat_id,))
+
+            # Obtener todas las inmersiones sin filtrar por grupo
             await cursor.execute("""
                 SELECT inmersion_id, nombre, plazas 
-                FROM inmersiones 
-                WHERE active_group = %s
-            """, (chat_id,))
+                FROM inmersiones
+            """)
+
             inmersiones = await cursor.fetchall()
         
         if not inmersiones:
@@ -159,13 +169,22 @@ async def inmersiones(update: Update, context: ContextTypes.DEFAULT_TYPE, privat
 
     async with connection.cursor() as cursor:
         # Filtrar las inmersiones por el grupo activo (active_group)
+        #await cursor.execute("""
+        #    SELECT i.inmersion_id, i.nombre, i.plazas, COUNT(u.user_id) AS inscritos
+        #    FROM inmersiones i
+        #    LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+        #    WHERE i.active_group = %s
+        #    GROUP BY i.inmersion_id, i.nombre, i.plazas
+        #""", (chat_id,))
+
+        # Obtener todas las inmersiones sin filtrar por grupo
         await cursor.execute("""
             SELECT i.inmersion_id, i.nombre, i.plazas, COUNT(u.user_id) AS inscritos
             FROM inmersiones i
             LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
-            WHERE i.active_group = %s
             GROUP BY i.inmersion_id, i.nombre, i.plazas
-        """, (chat_id,))
+        """)
+
         inmersiones = await cursor.fetchall()
     
     if not inmersiones:
@@ -269,12 +288,21 @@ async def baja(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async with connection.cursor() as cursor:
         # Obtener las inmersiones a las que el usuario está apuntado y que pertenecen al grupo activo
+        #await cursor.execute("""
+        #    SELECT i.inmersion_id, i.nombre
+        #    FROM inmersiones i
+        #    JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+        #    WHERE u.user_id = %s AND i.active_group = %s
+        #""", (user_id, chat_id))
+
+        # Obtener todas las inmersiones a las que el usuario está apuntado sin filtrar por grupo
         await cursor.execute("""
             SELECT i.inmersion_id, i.nombre
             FROM inmersiones i
             JOIN usuarios u ON i.inmersion_id = u.inmersion_id
-            WHERE u.user_id = %s AND i.active_group = %s
-        """, (user_id, chat_id))
+            WHERE u.user_id = %s
+        """, (user_id,))
+
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
@@ -429,11 +457,19 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     async with connection.cursor() as cursor:
         # Plazas de reserva
         plazas_con_reserva = plazas + 2
+
         # Insertar la inmersión con el campo active_group y el timestamp
+        #await cursor.execute("""
+        #    INSERT INTO inmersiones (nombre, plazas, active_group, created_at) 
+        #    VALUES (%s, %s, %s, %s)
+        #""", (nombre, plazas_con_reserva, chat_id, timestamp))
+
+        # Insertar la inmersión sin el campo active_group
         await cursor.execute("""
-            INSERT INTO inmersiones (nombre, plazas, active_group, created_at) 
-            VALUES (%s, %s, %s, %s)
-        """, (nombre, plazas_con_reserva, chat_id, timestamp))
+            INSERT INTO inmersiones (nombre, plazas, created_at) 
+            VALUES (%s, %s, %s)
+        """, (nombre, plazas_con_reserva, timestamp))
+
         await connection.commit()
 
         # Obtener el ID generado automáticamente
@@ -463,13 +499,22 @@ async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async with connection.cursor() as cursor:
         # Filtrar las inmersiones por el grupo activo (active_group) y obtener el número de usuarios apuntados
+        #await cursor.execute("""
+        #    SELECT i.inmersion_id, i.nombre, COUNT(u.user_id) as num_usuarios
+        #    FROM inmersiones i
+        #    LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
+        #    WHERE i.active_group = %s
+        #    GROUP BY i.inmersion_id, i.nombre
+        #""", (chat_id,))
+
+        # Obtener todas las inmersiones sin filtrar por grupo
         await cursor.execute("""
             SELECT i.inmersion_id, i.nombre, COUNT(u.user_id) as num_usuarios
             FROM inmersiones i
             LEFT JOIN usuarios u ON i.inmersion_id = u.inmersion_id
-            WHERE i.active_group = %s
             GROUP BY i.inmersion_id, i.nombre
-        """, (chat_id,))
+        """)
+
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
