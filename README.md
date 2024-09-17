@@ -1,5 +1,5 @@
 
-# DivingEvents Beta v3 (Versión multiclub)
+# DivingEvents Beta v4 (Versión MultiGrupo)
 
 Support on Telegram @t850model102
 
@@ -8,6 +8,12 @@ Bot de Telegram para gestionar inmersiones de un club de buceo.
 Se agradece cualquier idea o aportación.
 Se puede probar el funcionamiento en el siguiente grupo privado. Solamente hay que poner el símbolo "/" o pinchar en el icono de comandos y se mostrarán los comandos disponibles.
 https://t.me/+2yurjF0IprU0Y2E0
+
+
+Cambios versión beta4:
+- Se ha solucionado un bug por el que los propietarios de un grupo, no tienen los permisos de los administradores.
+- Se ha eliminado la posiblidad de que varios grupos tengas sus inmersiones separadas.
+- Ahora Un club con varios grupos, puede gestionar las mismas inmersiones, siempre que estén en la lista blanca de grupos.
 
 Mejoras de la versión beta3:
 - Consultas asíncronas a la base de datos.
