@@ -33,14 +33,14 @@ AUTHORIZED_CHAT_ID = os.getenv('AUTHORIZED_CHAT_ID')
 BOT_NO_AUTORIZADO = 'Para autorizar este bot, escribe el comando /start y envía el identificador que aparece en un mensaje privado a: @t850model102'
 NO_ADMINISTRADOR = 'Solamente un administrador del grupo puede usar este comando'
 
-# Saber si un usuario es administrador o creador usando get_chat_member
+# Saber si un usuario es administrador o creador
 async def is_admin_or_creator(user_id, chat_id, bot):
-    chat_member = await bot.get_chat_member(chat_id, user_id)
-    print(f"Chat member: {chat_member}")  # Depurar la información del miembro
-    
-    # Verificar si el usuario es administrador o creador
-    if chat_member.status in ['creator', 'administrator']:
-        return True
+    chat_administrators = await bot.get_chat_administrators(chat_id)  # Await la coroutine
+    for admin in chat_administrators:
+        if admin.user.id == user_id:
+            # Comprobar si el usuario es creador del grupo
+            if admin.status == 'creator' or admin.status == 'administrator':
+                return True
     return False
 
 # Conectar a la base de datos
@@ -57,6 +57,16 @@ def authorized(chat_id):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
+    bot = context.bot
+
+    # Llamar a la función is_admin_or_creator para verificar permisos
+    is_admin = await is_admin_or_creator(user_id, chat_id, bot)
+    
+    if is_admin:
+        await update.message.reply_text("¡Eres administrador o creador!")
+    else:
+        await update.message.reply_text("No eres administrador ni creador.")
+
     await update.message.reply_text(f'El ID de tu grupo es {chat_id} y tu usuario es:{user_id} . {MYSQL_USER}')
 
 # Comando /ver
