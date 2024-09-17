@@ -394,9 +394,9 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
         # Filtrar las inmersiones por el grupo activo (active_group)
         await cursor.execute("""
             SELECT inmersion_id, nombre, plazas 
-            FROM inmersiones 
-            WHERE active_group = %s
-        """, (chat_id,))
+            FROM inmersiones
+        """)
+
         inmersiones = await cursor.fetchall()
     
     if not inmersiones:
@@ -595,11 +595,12 @@ async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async with connection.cursor() as cursor:
         # Filtrar las inmersiones por el grupo activo (active_group)
+        # Obtener todas las inmersiones sin filtrar por grupo
         await cursor.execute("""
             SELECT inmersion_id, nombre 
-            FROM inmersiones 
-            WHERE active_group = %s
-        """, (chat_id,))
+            FROM inmersiones
+        """)
+
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
@@ -707,7 +708,7 @@ async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     async with connection.cursor() as cursor:
         # Verificar si la inmersión pertenece al grupo activo
-        await cursor.execute("SELECT 1 FROM inmersiones WHERE inmersion_id=%s AND active_group=%s", (evento_id, chat_id))
+        await cursor.execute("SELECT 1 FROM inmersiones WHERE inmersion_id=%s", (evento_id))
         valid_inmersion = await cursor.fetchone()
 
         if not valid_inmersion:
@@ -784,8 +785,8 @@ async def alquilerequipo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             SELECT i.inmersion_id, i.nombre
             FROM inmersiones i
             JOIN usuarios u ON i.inmersion_id = u.inmersion_id
-            WHERE u.user_id = %s AND i.active_group = %s
-        """, (user_id, chat_id))
+            WHERE u.user_id = %s
+        """, (user_id))
         inmersiones = await cursor.fetchall()
 
     if not inmersiones:
