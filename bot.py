@@ -361,7 +361,7 @@ async def inmersiones_detalles(update: Update, context: ContextTypes.DEFAULT_TYP
         await update.message.reply_text(BOT_NO_AUTORIZADO, disable_notification=True)
         return
     
-    if not await is_admin(sender_user_id, chat_id, context.bot):
+    if not await is_admin_or_creator(sender_user_id, chat_id, context.bot):
         await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
@@ -427,7 +427,7 @@ async def crear_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
-    if not await is_admin(user_id, chat_id, bot):  # Await para la verificación de administrador
+    if not await is_admin_or_creator(user_id, chat_id, bot):  # Await para la verificación de administrador
         await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
@@ -491,7 +491,7 @@ async def borrar_inmersion(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
-    if not await is_admin(user_id, chat_id, bot):
+    if not await is_admin_or_creator(user_id, chat_id, bot):
         await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return    
 
@@ -564,7 +564,7 @@ async def observaciones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
-    if not await is_admin(user_id, chat_id, bot):
+    if not await is_admin_or_creator(user_id, chat_id, bot):
         await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
 
@@ -669,7 +669,7 @@ async def eliminar_buceador(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
-    if not await is_admin(sender_user_id, chat_id, bot):
+    if not await is_admin_or_creator(sender_user_id, chat_id, bot):
         await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
     
@@ -710,7 +710,7 @@ async def purgar_datos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(BOT_NO_AUTORIZADO)
         return
     
-    if not await is_admin(sender_user_id, chat_id, bot):
+    if not await is_admin_or_creator(sender_user_id, chat_id, bot):
         await update.message.reply_text(NO_ADMINISTRADOR, disable_notification=True)
         return
 
